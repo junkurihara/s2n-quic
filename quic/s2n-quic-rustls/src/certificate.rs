@@ -3,7 +3,7 @@
 
 #![allow(dead_code)]
 
-use rustls::Error;
+use rustls::{pki_types, Error};
 
 macro_rules! cert_type {
     ($name:ident, $trait:ident, $method:ident, $inner:ty) => {
@@ -76,69 +76,84 @@ cert_type!(
     PrivateKey,
     IntoPrivateKey,
     into_private_key,
-    rustls::PrivateKey
+    pki_types::PrivateKeyDer<'static>
 );
 cert_type!(
     Certificate,
     IntoCertificate,
     into_certificate,
-    Vec<rustls::Certificate>
+    Vec<pki_types::CertificateDer<'static>>
 );
 
 mod pem {
     use super::*;
 
-    pub fn into_certificate(contents: &[u8]) -> Result<Vec<rustls::Certificate>, Error> {
+    pub fn into_certificate(
+        contents: &[u8],
+    ) -> Result<Vec<pki_types::CertificateDer<'static>>, Error> {
         let mut cursor = std::io::Cursor::new(contents);
         let certs = rustls_pemfile::certs(&mut cursor)
-            .map(|certs| certs.into_iter().map(rustls::Certificate).collect())
-            .map_err(|_| Error::General("Could not read certificate".to_string()))?;
+            .map(|certs| certs.into_iter().map(pki_types::CertificateDer::from))
+            .flatten()
+            .collect();
+        // .map_err(|_| Error::General("Could not read certificate".to_string()))?;
         Ok(certs)
     }
 
-    pub fn into_private_key(contents: &[u8]) -> Result<rustls::PrivateKey, Error> {
+    pub fn into_private_key(contents: &[u8]) -> Result<pki_types::PrivateKeyDer<'static>, Error> {
         let mut cursor = std::io::Cursor::new(contents);
 
-        let parsers = [
-            rustls_pemfile::rsa_private_keys,
-            rustls_pemfile::pkcs8_private_keys,
-        ];
+        let mut private_keys = rustls_pemfile::read_all(&mut cursor)
+            .filter(|v| v.is_ok())
+            .collect::<Vec<_>>();
 
-        for parser in parsers.iter() {
-            cursor.set_position(0);
-
-            match parser(&mut cursor) {
-                Ok(keys) if keys.is_empty() => continue,
-                Ok(mut keys) if keys.len() == 1 => {
-                    return Ok(rustls::PrivateKey(keys.pop().unwrap()))
-                }
-                Ok(keys) => {
-                    return Err(Error::General(format!(
-                        "Unexpected number of keys: {} (only 1 supported)",
-                        keys.len()
-                    )));
-                }
-                // try the next parser
-                Err(_) => continue,
-            }
+        if private_keys.len() > 1 {
+            return Err(Error::General(format!(
+                "Unexpected number of keys: {} (only 1 supported)",
+                private_keys.len()
+            )));
+        }
+        if private_keys.is_empty() {
+            return Err(Error::General(
+                "could not load any valid private keys".to_string(),
+            ));
         }
 
-        Err(Error::General(
-            "could not load any valid private keys".to_string(),
-        ))
+        let key = match private_keys.pop().unwrap().unwrap() {
+            rustls_pemfile::Item::Pkcs1Key(key) => pki_types::PrivateKeyDer::from(key),
+            rustls_pemfile::Item::Pkcs8Key(key) => pki_types::PrivateKeyDer::from(key),
+            _ => return Err(Error::General("unhandled item".to_string())),
+        };
+
+        Ok(key)
     }
 }
 
 mod der {
     use super::*;
+    use pkcs8::der::Decode;
 
-    pub fn into_certificate(contents: Vec<u8>) -> Result<Vec<rustls::Certificate>, Error> {
+    pub fn into_certificate(
+        contents: Vec<u8>,
+    ) -> Result<Vec<pki_types::CertificateDer<'static>>, Error> {
         // der files only have a single cert
-        Ok(vec![rustls::Certificate(contents)])
+        Ok(vec![pki_types::CertificateDer::from(contents)])
     }
 
-    pub fn into_private_key(contents: Vec<u8>) -> Result<rustls::PrivateKey, Error> {
-        Ok(rustls::PrivateKey(contents))
+    pub fn into_private_key(contents: Vec<u8>) -> Result<pki_types::PrivateKeyDer<'static>, Error> {
+        if let Ok(_) = pkcs8::PrivateKeyInfo::from_der(&contents) {
+            return Ok(pki_types::PrivateKeyDer::from(
+                pki_types::PrivatePkcs8KeyDer::from(contents),
+            ));
+        };
+
+        if let Ok(_) = pkcs1::RsaPrivateKey::from_der(&contents) {
+            return Ok(pki_types::PrivateKeyDer::from(
+                pki_types::PrivatePkcs1KeyDer::from(contents),
+            ));
+        };
+
+        Err(Error::General("Could not read private key".to_string()))
     }
 }
 

@@ -1,12 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use rustls::{cipher_suite as ciphers, quic, CipherSuite, SupportedCipherSuite};
+use rustls::{crypto::ring::cipher_suite as ciphers, quic, CipherSuite, SupportedCipherSuite};
 use s2n_codec::Encoder;
 use s2n_quic_core::crypto::{self, packet_protection, scatter, tls, HeaderProtectionMask, Key};
 
 pub struct PacketKey {
-    key: quic::PacketKey,
+    key: Box<dyn quic::PacketKey>,
     cipher_suite: tls::CipherSuite,
 }
 
@@ -159,7 +159,7 @@ impl crypto::Key for PacketKeys {
 
 impl crypto::HandshakeKey for PacketKeys {}
 
-pub struct HeaderProtectionKey(quic::HeaderProtectionKey);
+pub struct HeaderProtectionKey(Box<dyn quic::HeaderProtectionKey>);
 
 impl HeaderProtectionKey {
     /// Returns the header protection mask for the given ciphertext sample
