@@ -11,7 +11,11 @@ use s2n_quic_core::crypto::{self, packet_protection, scatter, tls, HeaderProtect
 /// `aws_lc_rs` is the default crypto provider since that is also the
 /// default used by rustls.
 pub(crate) fn default_crypto_provider() -> Result<CryptoProvider, rustls::Error> {
+    #[cfg(not(feature = "post-quantum"))]
     let crypto = aws_lc_rs::default_provider();
+    #[cfg(feature = "post-quantum")]
+    let crypto = rustls_post_quantum::provider();
+
     #[cfg(feature = "fips")]
     assert!(crypto.fips());
 
