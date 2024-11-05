@@ -6,6 +6,7 @@
 // changes should be made there.
 
 use super::*;
+pub(crate) mod metrics;
 pub mod api {
     #![doc = r" This module contains events that are emitted to the [`Subscriber`](crate::event::Subscriber)"]
     use super::*;
@@ -16,12 +17,34 @@ pub mod api {
     pub struct ConnectionMeta {
         pub id: u64,
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for ConnectionMeta {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ConnectionMeta");
+            fmt.field("id", &self.id);
+            fmt.finish()
+        }
+    }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
     pub struct EndpointMeta {}
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for EndpointMeta {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("EndpointMeta");
+            fmt.finish()
+        }
+    }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
     pub struct ConnectionInfo {}
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for ConnectionInfo {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ConnectionInfo");
+            fmt.finish()
+        }
+    }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
     pub struct ApplicationWrite {
@@ -29,6 +52,15 @@ pub mod api {
         pub total_len: usize,
         #[doc = " The amount that was written"]
         pub write_len: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for ApplicationWrite {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ApplicationWrite");
+            fmt.field("total_len", &self.total_len);
+            fmt.field("write_len", &self.write_len);
+            fmt.finish()
+        }
     }
     impl Event for ApplicationWrite {
         const NAME: &'static str = "application:write";
@@ -41,6 +73,15 @@ pub mod api {
         #[doc = " The amount that was read"]
         pub read_len: usize,
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for ApplicationRead {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ApplicationRead");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("read_len", &self.read_len);
+            fmt.finish()
+        }
+    }
     impl Event for ApplicationRead {
         const NAME: &'static str = "application:read";
     }
@@ -52,6 +93,17 @@ pub mod api {
         pub tcp: bool,
         pub udp: bool,
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for EndpointInitialized<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("EndpointInitialized");
+            fmt.field("acceptor_addr", &self.acceptor_addr);
+            fmt.field("handshake_addr", &self.handshake_addr);
+            fmt.field("tcp", &self.tcp);
+            fmt.field("udp", &self.udp);
+            fmt.finish()
+        }
+    }
     impl<'a> Event for EndpointInitialized<'a> {
         const NAME: &'static str = "endpoint:initialized";
     }
@@ -60,6 +112,14 @@ pub mod api {
     pub struct PathSecretMapInitialized {
         #[doc = " The capacity of the path secret map"]
         pub capacity: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for PathSecretMapInitialized {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapInitialized");
+            fmt.field("capacity", &self.capacity);
+            fmt.finish()
+        }
     }
     impl Event for PathSecretMapInitialized {
         const NAME: &'static str = "path_secret_map:initialized";
@@ -72,6 +132,15 @@ pub mod api {
         #[doc = " The number of entries in the map"]
         pub entries: usize,
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for PathSecretMapUninitialized {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapUninitialized");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("entries", &self.entries);
+            fmt.finish()
+        }
+    }
     impl Event for PathSecretMapUninitialized {
         const NAME: &'static str = "path_secret_map:uninitialized";
     }
@@ -80,6 +149,14 @@ pub mod api {
     #[doc = " Emitted when a background handshake is requested"]
     pub struct PathSecretMapBackgroundHandshakeRequested<'a> {
         pub peer_address: SocketAddress<'a>,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapBackgroundHandshakeRequested<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapBackgroundHandshakeRequested");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.finish()
+        }
     }
     impl<'a> Event for PathSecretMapBackgroundHandshakeRequested<'a> {
         const NAME: &'static str = "path_secret_map:background_handshake_requested";
@@ -91,6 +168,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapEntryInserted<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapEntryInserted");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for PathSecretMapEntryInserted<'a> {
         const NAME: &'static str = "path_secret_map:entry_replaced";
     }
@@ -100,6 +186,15 @@ pub mod api {
     pub struct PathSecretMapEntryReady<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapEntryReady<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapEntryReady");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for PathSecretMapEntryReady<'a> {
         const NAME: &'static str = "path_secret_map:entry_replaced";
@@ -112,6 +207,16 @@ pub mod api {
         pub new_credential_id: &'a [u8],
         pub previous_credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapEntryReplaced<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapEntryReplaced");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("new_credential_id", &"[HIDDEN]");
+            fmt.field("previous_credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for PathSecretMapEntryReplaced<'a> {
         const NAME: &'static str = "path_secret_map:entry_replaced";
     }
@@ -121,6 +226,15 @@ pub mod api {
     pub struct UnknownPathSecretPacketSent<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for UnknownPathSecretPacketSent<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("UnknownPathSecretPacketSent");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for UnknownPathSecretPacketSent<'a> {
         const NAME: &'static str = "path_secret_map:unknown_path_secret_packet_sent";
@@ -132,6 +246,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for UnknownPathSecretPacketReceived<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("UnknownPathSecretPacketReceived");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for UnknownPathSecretPacketReceived<'a> {
         const NAME: &'static str = "path_secret_map:unknown_path_secret_packet_received";
     }
@@ -141,6 +264,15 @@ pub mod api {
     pub struct UnknownPathSecretPacketAccepted<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for UnknownPathSecretPacketAccepted<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("UnknownPathSecretPacketAccepted");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for UnknownPathSecretPacketAccepted<'a> {
         const NAME: &'static str = "path_secret_map:unknown_path_secret_packet_accepted";
@@ -152,6 +284,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for UnknownPathSecretPacketRejected<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("UnknownPathSecretPacketRejected");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for UnknownPathSecretPacketRejected<'a> {
         const NAME: &'static str = "path_secret_map:unknown_path_secret_packet_rejected";
     }
@@ -162,6 +303,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for UnknownPathSecretPacketDropped<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("UnknownPathSecretPacketDropped");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for UnknownPathSecretPacketDropped<'a> {
         const NAME: &'static str = "path_secret_map:unknown_path_secret_packet_dropped";
     }
@@ -171,6 +321,15 @@ pub mod api {
     pub struct ReplayDefinitelyDetected<'a> {
         pub credential_id: &'a [u8],
         pub key_id: u64,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for ReplayDefinitelyDetected<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ReplayDefinitelyDetected");
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("key_id", &self.key_id);
+            fmt.finish()
+        }
     }
     impl<'a> Event for ReplayDefinitelyDetected<'a> {
         const NAME: &'static str = "path_secret_map:replay_definitely_detected";
@@ -184,6 +343,16 @@ pub mod api {
         pub key_id: u64,
         pub gap: u64,
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for ReplayPotentiallyDetected<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ReplayPotentiallyDetected");
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("key_id", &self.key_id);
+            fmt.field("gap", &self.gap);
+            fmt.finish()
+        }
+    }
     impl<'a> Event for ReplayPotentiallyDetected<'a> {
         const NAME: &'static str = "path_secret_map:replay_potentially_detected";
     }
@@ -194,6 +363,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for ReplayDetectedPacketSent<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ReplayDetectedPacketSent");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for ReplayDetectedPacketSent<'a> {
         const NAME: &'static str = "path_secret_map:replay_detected_packet_sent";
     }
@@ -203,6 +381,15 @@ pub mod api {
     pub struct ReplayDetectedPacketReceived<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for ReplayDetectedPacketReceived<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ReplayDetectedPacketReceived");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for ReplayDetectedPacketReceived<'a> {
         const NAME: &'static str = "path_secret_map:replay_detected_packet_received";
@@ -215,6 +402,16 @@ pub mod api {
         pub credential_id: &'a [u8],
         pub key_id: u64,
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for ReplayDetectedPacketAccepted<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ReplayDetectedPacketAccepted");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("key_id", &self.key_id);
+            fmt.finish()
+        }
+    }
     impl<'a> Event for ReplayDetectedPacketAccepted<'a> {
         const NAME: &'static str = "path_secret_map:replay_detected_packet_accepted";
     }
@@ -224,6 +421,15 @@ pub mod api {
     pub struct ReplayDetectedPacketRejected<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for ReplayDetectedPacketRejected<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ReplayDetectedPacketRejected");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for ReplayDetectedPacketRejected<'a> {
         const NAME: &'static str = "path_secret_map:replay_detected_packet_rejected";
@@ -235,6 +441,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for ReplayDetectedPacketDropped<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ReplayDetectedPacketDropped");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for ReplayDetectedPacketDropped<'a> {
         const NAME: &'static str = "path_secret_map:replay_detected_packet_dropped";
     }
@@ -244,6 +459,15 @@ pub mod api {
     pub struct StaleKeyPacketSent<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for StaleKeyPacketSent<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StaleKeyPacketSent");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for StaleKeyPacketSent<'a> {
         const NAME: &'static str = "path_secret_map:stale_key_packet_sent";
@@ -255,6 +479,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for StaleKeyPacketReceived<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StaleKeyPacketReceived");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for StaleKeyPacketReceived<'a> {
         const NAME: &'static str = "path_secret_map:stale_key_packet_received";
     }
@@ -264,6 +497,15 @@ pub mod api {
     pub struct StaleKeyPacketAccepted<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for StaleKeyPacketAccepted<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StaleKeyPacketAccepted");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for StaleKeyPacketAccepted<'a> {
         const NAME: &'static str = "path_secret_map:stale_key_packet_accepted";
@@ -275,6 +517,15 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
     }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for StaleKeyPacketRejected<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StaleKeyPacketRejected");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
+    }
     impl<'a> Event for StaleKeyPacketRejected<'a> {
         const NAME: &'static str = "path_secret_map:stale_key_packet_rejected";
     }
@@ -284,6 +535,15 @@ pub mod api {
     pub struct StaleKeyPacketDropped<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for StaleKeyPacketDropped<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StaleKeyPacketDropped");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.finish()
+        }
     }
     impl<'a> Event for StaleKeyPacketDropped<'a> {
         const NAME: &'static str = "path_secret_map:stale_key_packet_dropped";
@@ -1540,6 +1800,249 @@ mod traits {
             query.execute(context)
         }
     }
+    impl<T: Subscriber> Subscriber for std::sync::Arc<T> {
+        type ConnectionContext = T::ConnectionContext;
+        #[inline]
+        fn create_connection_context(
+            &self,
+            meta: &api::ConnectionMeta,
+            info: &api::ConnectionInfo,
+        ) -> Self::ConnectionContext {
+            self.as_ref().create_connection_context(meta, info)
+        }
+        #[inline]
+        fn on_application_write(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::ApplicationWrite,
+        ) {
+            self.as_ref().on_application_write(context, meta, event);
+        }
+        #[inline]
+        fn on_application_read(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::ApplicationRead,
+        ) {
+            self.as_ref().on_application_read(context, meta, event);
+        }
+        #[inline]
+        fn on_endpoint_initialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::EndpointInitialized,
+        ) {
+            self.as_ref().on_endpoint_initialized(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_initialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapInitialized,
+        ) {
+            self.as_ref().on_path_secret_map_initialized(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_uninitialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapUninitialized,
+        ) {
+            self.as_ref().on_path_secret_map_uninitialized(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_background_handshake_requested(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapBackgroundHandshakeRequested,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_background_handshake_requested(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_entry_inserted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapEntryInserted,
+        ) {
+            self.as_ref().on_path_secret_map_entry_inserted(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_entry_ready(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapEntryReady,
+        ) {
+            self.as_ref().on_path_secret_map_entry_ready(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_entry_replaced(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapEntryReplaced,
+        ) {
+            self.as_ref().on_path_secret_map_entry_replaced(meta, event);
+        }
+        #[inline]
+        fn on_unknown_path_secret_packet_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::UnknownPathSecretPacketSent,
+        ) {
+            self.as_ref()
+                .on_unknown_path_secret_packet_sent(meta, event);
+        }
+        #[inline]
+        fn on_unknown_path_secret_packet_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::UnknownPathSecretPacketReceived,
+        ) {
+            self.as_ref()
+                .on_unknown_path_secret_packet_received(meta, event);
+        }
+        #[inline]
+        fn on_unknown_path_secret_packet_accepted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::UnknownPathSecretPacketAccepted,
+        ) {
+            self.as_ref()
+                .on_unknown_path_secret_packet_accepted(meta, event);
+        }
+        #[inline]
+        fn on_unknown_path_secret_packet_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::UnknownPathSecretPacketRejected,
+        ) {
+            self.as_ref()
+                .on_unknown_path_secret_packet_rejected(meta, event);
+        }
+        #[inline]
+        fn on_unknown_path_secret_packet_dropped(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::UnknownPathSecretPacketDropped,
+        ) {
+            self.as_ref()
+                .on_unknown_path_secret_packet_dropped(meta, event);
+        }
+        #[inline]
+        fn on_replay_definitely_detected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::ReplayDefinitelyDetected,
+        ) {
+            self.as_ref().on_replay_definitely_detected(meta, event);
+        }
+        #[inline]
+        fn on_replay_potentially_detected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::ReplayPotentiallyDetected,
+        ) {
+            self.as_ref().on_replay_potentially_detected(meta, event);
+        }
+        #[inline]
+        fn on_replay_detected_packet_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::ReplayDetectedPacketSent,
+        ) {
+            self.as_ref().on_replay_detected_packet_sent(meta, event);
+        }
+        #[inline]
+        fn on_replay_detected_packet_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::ReplayDetectedPacketReceived,
+        ) {
+            self.as_ref()
+                .on_replay_detected_packet_received(meta, event);
+        }
+        #[inline]
+        fn on_replay_detected_packet_accepted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::ReplayDetectedPacketAccepted,
+        ) {
+            self.as_ref()
+                .on_replay_detected_packet_accepted(meta, event);
+        }
+        #[inline]
+        fn on_replay_detected_packet_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::ReplayDetectedPacketRejected,
+        ) {
+            self.as_ref()
+                .on_replay_detected_packet_rejected(meta, event);
+        }
+        #[inline]
+        fn on_replay_detected_packet_dropped(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::ReplayDetectedPacketDropped,
+        ) {
+            self.as_ref().on_replay_detected_packet_dropped(meta, event);
+        }
+        #[inline]
+        fn on_stale_key_packet_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::StaleKeyPacketSent,
+        ) {
+            self.as_ref().on_stale_key_packet_sent(meta, event);
+        }
+        #[inline]
+        fn on_stale_key_packet_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::StaleKeyPacketReceived,
+        ) {
+            self.as_ref().on_stale_key_packet_received(meta, event);
+        }
+        #[inline]
+        fn on_stale_key_packet_accepted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::StaleKeyPacketAccepted,
+        ) {
+            self.as_ref().on_stale_key_packet_accepted(meta, event);
+        }
+        #[inline]
+        fn on_stale_key_packet_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::StaleKeyPacketRejected,
+        ) {
+            self.as_ref().on_stale_key_packet_rejected(meta, event);
+        }
+        #[inline]
+        fn on_stale_key_packet_dropped(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::StaleKeyPacketDropped,
+        ) {
+            self.as_ref().on_stale_key_packet_dropped(meta, event);
+        }
+        #[inline]
+        fn on_event<M: Meta, E: Event>(&self, meta: &M, event: &E) {
+            self.as_ref().on_event(meta, event);
+        }
+        #[inline]
+        fn on_connection_event<E: Event>(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &E,
+        ) {
+            self.as_ref().on_connection_event(context, meta, event);
+        }
+    }
     #[doc = r" Subscriber is implemented for a 2-element tuple to make it easy to compose multiple"]
     #[doc = r" subscribers."]
     impl<A, B> Subscriber for (A, B)
@@ -2171,82 +2674,6 @@ mod traits {
         }
     }
 }
-pub mod metrics {
-    use super::*;
-    use core::sync::atomic::{AtomicU32, Ordering};
-    use s2n_quic_core::event::metrics::Recorder;
-    #[derive(Debug)]
-    pub struct Subscriber<S: super::Subscriber>
-    where
-        S::ConnectionContext: Recorder,
-    {
-        subscriber: S,
-    }
-    impl<S: super::Subscriber> Subscriber<S>
-    where
-        S::ConnectionContext: Recorder,
-    {
-        pub fn new(subscriber: S) -> Self {
-            Self { subscriber }
-        }
-    }
-    pub struct Context<R: Recorder> {
-        recorder: R,
-        application_write: AtomicU32,
-        application_read: AtomicU32,
-    }
-    impl<S: super::Subscriber> super::Subscriber for Subscriber<S>
-    where
-        S::ConnectionContext: Recorder,
-    {
-        type ConnectionContext = Context<S::ConnectionContext>;
-        fn create_connection_context(
-            &self,
-            meta: &api::ConnectionMeta,
-            info: &api::ConnectionInfo,
-        ) -> Self::ConnectionContext {
-            Context {
-                recorder: self.subscriber.create_connection_context(meta, info),
-                application_write: AtomicU32::new(0),
-                application_read: AtomicU32::new(0),
-            }
-        }
-        #[inline]
-        fn on_application_write(
-            &self,
-            context: &Self::ConnectionContext,
-            meta: &api::ConnectionMeta,
-            event: &api::ApplicationWrite,
-        ) {
-            context.application_write.fetch_add(1, Ordering::Relaxed);
-            self.subscriber
-                .on_application_write(&context.recorder, meta, event);
-        }
-        #[inline]
-        fn on_application_read(
-            &self,
-            context: &Self::ConnectionContext,
-            meta: &api::ConnectionMeta,
-            event: &api::ApplicationRead,
-        ) {
-            context.application_read.fetch_add(1, Ordering::Relaxed);
-            self.subscriber
-                .on_application_read(&context.recorder, meta, event);
-        }
-    }
-    impl<R: Recorder> Drop for Context<R> {
-        fn drop(&mut self) {
-            self.recorder.increment_counter(
-                "application_write",
-                self.application_write.load(Ordering::Relaxed) as _,
-            );
-            self.recorder.increment_counter(
-                "application_read",
-                self.application_read.load(Ordering::Relaxed) as _,
-            );
-        }
-    }
-}
 #[cfg(any(test, feature = "testing"))]
 pub mod testing {
     use super::*;
@@ -2354,10 +2781,10 @@ pub mod testing {
                 event: &api::EndpointInitialized,
             ) {
                 self.endpoint_initialized.fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_path_secret_map_initialized(
                 &self,
@@ -2366,10 +2793,10 @@ pub mod testing {
             ) {
                 self.path_secret_map_initialized
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_path_secret_map_uninitialized(
                 &self,
@@ -2378,10 +2805,10 @@ pub mod testing {
             ) {
                 self.path_secret_map_uninitialized
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_path_secret_map_background_handshake_requested(
                 &self,
@@ -2390,10 +2817,10 @@ pub mod testing {
             ) {
                 self.path_secret_map_background_handshake_requested
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_path_secret_map_entry_inserted(
                 &self,
@@ -2402,10 +2829,10 @@ pub mod testing {
             ) {
                 self.path_secret_map_entry_inserted
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_path_secret_map_entry_ready(
                 &self,
@@ -2414,10 +2841,10 @@ pub mod testing {
             ) {
                 self.path_secret_map_entry_ready
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_path_secret_map_entry_replaced(
                 &self,
@@ -2426,10 +2853,10 @@ pub mod testing {
             ) {
                 self.path_secret_map_entry_replaced
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_unknown_path_secret_packet_sent(
                 &self,
@@ -2438,10 +2865,10 @@ pub mod testing {
             ) {
                 self.unknown_path_secret_packet_sent
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_unknown_path_secret_packet_received(
                 &self,
@@ -2450,10 +2877,10 @@ pub mod testing {
             ) {
                 self.unknown_path_secret_packet_received
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_unknown_path_secret_packet_accepted(
                 &self,
@@ -2462,10 +2889,10 @@ pub mod testing {
             ) {
                 self.unknown_path_secret_packet_accepted
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_unknown_path_secret_packet_rejected(
                 &self,
@@ -2474,10 +2901,10 @@ pub mod testing {
             ) {
                 self.unknown_path_secret_packet_rejected
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_unknown_path_secret_packet_dropped(
                 &self,
@@ -2486,10 +2913,10 @@ pub mod testing {
             ) {
                 self.unknown_path_secret_packet_dropped
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_replay_definitely_detected(
                 &self,
@@ -2498,10 +2925,10 @@ pub mod testing {
             ) {
                 self.replay_definitely_detected
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_replay_potentially_detected(
                 &self,
@@ -2510,10 +2937,10 @@ pub mod testing {
             ) {
                 self.replay_potentially_detected
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_replay_detected_packet_sent(
                 &self,
@@ -2522,10 +2949,10 @@ pub mod testing {
             ) {
                 self.replay_detected_packet_sent
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_replay_detected_packet_received(
                 &self,
@@ -2534,10 +2961,10 @@ pub mod testing {
             ) {
                 self.replay_detected_packet_received
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_replay_detected_packet_accepted(
                 &self,
@@ -2546,10 +2973,10 @@ pub mod testing {
             ) {
                 self.replay_detected_packet_accepted
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_replay_detected_packet_rejected(
                 &self,
@@ -2558,10 +2985,10 @@ pub mod testing {
             ) {
                 self.replay_detected_packet_rejected
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_replay_detected_packet_dropped(
                 &self,
@@ -2570,10 +2997,10 @@ pub mod testing {
             ) {
                 self.replay_detected_packet_dropped
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_stale_key_packet_sent(
                 &self,
@@ -2581,10 +3008,10 @@ pub mod testing {
                 event: &api::StaleKeyPacketSent,
             ) {
                 self.stale_key_packet_sent.fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_stale_key_packet_received(
                 &self,
@@ -2593,10 +3020,10 @@ pub mod testing {
             ) {
                 self.stale_key_packet_received
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_stale_key_packet_accepted(
                 &self,
@@ -2605,10 +3032,10 @@ pub mod testing {
             ) {
                 self.stale_key_packet_accepted
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_stale_key_packet_rejected(
                 &self,
@@ -2617,10 +3044,10 @@ pub mod testing {
             ) {
                 self.stale_key_packet_rejected
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
             fn on_stale_key_packet_dropped(
                 &self,
@@ -2629,10 +3056,10 @@ pub mod testing {
             ) {
                 self.stale_key_packet_dropped
                     .fetch_add(1, Ordering::Relaxed);
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
         }
     }
@@ -2742,10 +3169,10 @@ pub mod testing {
         ) {
             self.application_write.fetch_add(1, Ordering::Relaxed);
             if self.location.is_some() {
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
         }
         fn on_application_read(
@@ -2756,10 +3183,10 @@ pub mod testing {
         ) {
             self.application_read.fetch_add(1, Ordering::Relaxed);
             if self.location.is_some() {
-                self.output
-                    .lock()
-                    .unwrap()
-                    .push(format!("{meta:?} {event:?}"));
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
             }
         }
         fn on_endpoint_initialized(
@@ -2768,10 +3195,10 @@ pub mod testing {
             event: &api::EndpointInitialized,
         ) {
             self.endpoint_initialized.fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_initialized(
             &self,
@@ -2780,10 +3207,10 @@ pub mod testing {
         ) {
             self.path_secret_map_initialized
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_uninitialized(
             &self,
@@ -2792,10 +3219,10 @@ pub mod testing {
         ) {
             self.path_secret_map_uninitialized
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_background_handshake_requested(
             &self,
@@ -2804,10 +3231,10 @@ pub mod testing {
         ) {
             self.path_secret_map_background_handshake_requested
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_entry_inserted(
             &self,
@@ -2816,10 +3243,10 @@ pub mod testing {
         ) {
             self.path_secret_map_entry_inserted
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_entry_ready(
             &self,
@@ -2828,10 +3255,10 @@ pub mod testing {
         ) {
             self.path_secret_map_entry_ready
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_entry_replaced(
             &self,
@@ -2840,10 +3267,10 @@ pub mod testing {
         ) {
             self.path_secret_map_entry_replaced
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_sent(
             &self,
@@ -2852,10 +3279,10 @@ pub mod testing {
         ) {
             self.unknown_path_secret_packet_sent
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_received(
             &self,
@@ -2864,10 +3291,10 @@ pub mod testing {
         ) {
             self.unknown_path_secret_packet_received
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_accepted(
             &self,
@@ -2876,10 +3303,10 @@ pub mod testing {
         ) {
             self.unknown_path_secret_packet_accepted
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_rejected(
             &self,
@@ -2888,10 +3315,10 @@ pub mod testing {
         ) {
             self.unknown_path_secret_packet_rejected
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_dropped(
             &self,
@@ -2900,10 +3327,10 @@ pub mod testing {
         ) {
             self.unknown_path_secret_packet_dropped
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_definitely_detected(
             &self,
@@ -2912,10 +3339,10 @@ pub mod testing {
         ) {
             self.replay_definitely_detected
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_potentially_detected(
             &self,
@@ -2924,10 +3351,10 @@ pub mod testing {
         ) {
             self.replay_potentially_detected
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_sent(
             &self,
@@ -2936,10 +3363,10 @@ pub mod testing {
         ) {
             self.replay_detected_packet_sent
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_received(
             &self,
@@ -2948,10 +3375,10 @@ pub mod testing {
         ) {
             self.replay_detected_packet_received
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_accepted(
             &self,
@@ -2960,10 +3387,10 @@ pub mod testing {
         ) {
             self.replay_detected_packet_accepted
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_rejected(
             &self,
@@ -2972,10 +3399,10 @@ pub mod testing {
         ) {
             self.replay_detected_packet_rejected
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_dropped(
             &self,
@@ -2984,10 +3411,10 @@ pub mod testing {
         ) {
             self.replay_detected_packet_dropped
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_sent(
             &self,
@@ -2995,10 +3422,10 @@ pub mod testing {
             event: &api::StaleKeyPacketSent,
         ) {
             self.stale_key_packet_sent.fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_received(
             &self,
@@ -3007,10 +3434,10 @@ pub mod testing {
         ) {
             self.stale_key_packet_received
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_accepted(
             &self,
@@ -3019,10 +3446,10 @@ pub mod testing {
         ) {
             self.stale_key_packet_accepted
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_rejected(
             &self,
@@ -3031,10 +3458,10 @@ pub mod testing {
         ) {
             self.stale_key_packet_rejected
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_dropped(
             &self,
@@ -3043,10 +3470,10 @@ pub mod testing {
         ) {
             self.stale_key_packet_dropped
                 .fetch_add(1, Ordering::Relaxed);
-            self.output
-                .lock()
-                .unwrap()
-                .push(format!("{meta:?} {event:?}"));
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
         }
     }
     #[derive(Debug)]
@@ -3133,19 +3560,25 @@ pub mod testing {
         fn on_endpoint_initialized(&self, event: builder::EndpointInitialized) {
             self.endpoint_initialized.fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_initialized(&self, event: builder::PathSecretMapInitialized) {
             self.path_secret_map_initialized
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_uninitialized(&self, event: builder::PathSecretMapUninitialized) {
             self.path_secret_map_uninitialized
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_background_handshake_requested(
             &self,
@@ -3154,31 +3587,41 @@ pub mod testing {
             self.path_secret_map_background_handshake_requested
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_entry_inserted(&self, event: builder::PathSecretMapEntryInserted) {
             self.path_secret_map_entry_inserted
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_entry_ready(&self, event: builder::PathSecretMapEntryReady) {
             self.path_secret_map_entry_ready
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_path_secret_map_entry_replaced(&self, event: builder::PathSecretMapEntryReplaced) {
             self.path_secret_map_entry_replaced
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_sent(&self, event: builder::UnknownPathSecretPacketSent) {
             self.unknown_path_secret_packet_sent
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_received(
             &self,
@@ -3187,7 +3630,9 @@ pub mod testing {
             self.unknown_path_secret_packet_received
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_accepted(
             &self,
@@ -3196,7 +3641,9 @@ pub mod testing {
             self.unknown_path_secret_packet_accepted
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_rejected(
             &self,
@@ -3205,7 +3652,9 @@ pub mod testing {
             self.unknown_path_secret_packet_rejected
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_unknown_path_secret_packet_dropped(
             &self,
@@ -3214,78 +3663,104 @@ pub mod testing {
             self.unknown_path_secret_packet_dropped
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_definitely_detected(&self, event: builder::ReplayDefinitelyDetected) {
             self.replay_definitely_detected
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_potentially_detected(&self, event: builder::ReplayPotentiallyDetected) {
             self.replay_potentially_detected
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_sent(&self, event: builder::ReplayDetectedPacketSent) {
             self.replay_detected_packet_sent
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_received(&self, event: builder::ReplayDetectedPacketReceived) {
             self.replay_detected_packet_received
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_accepted(&self, event: builder::ReplayDetectedPacketAccepted) {
             self.replay_detected_packet_accepted
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_rejected(&self, event: builder::ReplayDetectedPacketRejected) {
             self.replay_detected_packet_rejected
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_replay_detected_packet_dropped(&self, event: builder::ReplayDetectedPacketDropped) {
             self.replay_detected_packet_dropped
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_sent(&self, event: builder::StaleKeyPacketSent) {
             self.stale_key_packet_sent.fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_received(&self, event: builder::StaleKeyPacketReceived) {
             self.stale_key_packet_received
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_accepted(&self, event: builder::StaleKeyPacketAccepted) {
             self.stale_key_packet_accepted
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_rejected(&self, event: builder::StaleKeyPacketRejected) {
             self.stale_key_packet_rejected
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn on_stale_key_packet_dropped(&self, event: builder::StaleKeyPacketDropped) {
             self.stale_key_packet_dropped
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
-            self.output.lock().unwrap().push(format!("{event:?}"));
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
         }
         fn quic_version(&self) -> Option<u32> {
             Some(1)
@@ -3296,14 +3771,18 @@ pub mod testing {
             self.application_write.fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             if self.location.is_some() {
-                self.output.lock().unwrap().push(format!("{event:?}"));
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
             }
         }
         fn on_application_read(&self, event: builder::ApplicationRead) {
             self.application_read.fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             if self.location.is_some() {
-                self.output.lock().unwrap().push(format!("{event:?}"));
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
             }
         }
         fn quic_version(&self) -> u32 {
