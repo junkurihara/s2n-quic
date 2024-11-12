@@ -28,9 +28,10 @@ struct PacketSkipped {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.3.5
 /// Packet was sent by a connection
 struct PacketSent {
+    #[nominal_counter("kind")]
     packet_header: PacketHeader,
-    #[measure("bytes", "b")]
-    #[counter("bytes.total", "b")]
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
     packet_len: usize,
 }
 
@@ -38,6 +39,7 @@ struct PacketSent {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.3.6
 /// Packet was received by a connection
 struct PacketReceived {
+    #[nominal_counter("kind")]
     packet_header: PacketHeader,
 }
 
@@ -65,8 +67,10 @@ struct PathCreated<'a> {
 // packet events.
 /// Frame was sent
 struct FrameSent {
+    #[nominal_counter("packet")]
     packet_header: PacketHeader,
     path_id: u64,
+    #[nominal_counter("frame")]
     frame: Frame,
 }
 
@@ -76,8 +80,10 @@ struct FrameSent {
 // packet events.
 /// Frame was received
 struct FrameReceived<'a> {
+    #[nominal_counter("packet")]
     packet_header: PacketHeader,
     path: Path<'a>,
+    #[nominal_counter("frame")]
     frame: Frame,
 }
 
@@ -85,11 +91,13 @@ struct FrameReceived<'a> {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.4.5
 /// Packet was lost
 struct PacketLost<'a> {
+    #[nominal_counter("kind")]
     packet_header: PacketHeader,
     path: Path<'a>,
-    #[measure("bytes", "b")]
-    #[counter("bytes.total", "b")]
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
     bytes_lost: u16,
+    #[bool_counter("is_mtu_probe")]
     is_mtu_probe: bool,
 }
 
@@ -98,23 +106,23 @@ struct PacketLost<'a> {
 /// Recovery metrics updated
 struct RecoveryMetrics<'a> {
     path: Path<'a>,
-    #[measure("min_rtt", "us")]
+    #[measure("min_rtt", Duration)]
     min_rtt: Duration,
-    #[measure("smoothed_rtt", "us")]
+    #[measure("smoothed_rtt", Duration)]
     smoothed_rtt: Duration,
-    #[measure("latest_rtt", "us")]
+    #[measure("latest_rtt", Duration)]
     latest_rtt: Duration,
-    #[measure("rtt_variance", "us")]
+    #[measure("rtt_variance", Duration)]
     rtt_variance: Duration,
-    #[measure("max_ack_delay", "us")]
+    #[measure("max_ack_delay", Duration)]
     max_ack_delay: Duration,
     #[measure("pto_count")]
     pto_count: u32,
-    #[measure("congestion_window", "b")]
+    #[measure("congestion_window", Duration)]
     congestion_window: u32,
-    #[measure("bytes_in_flight", "b")]
+    #[measure("bytes_in_flight", Duration)]
     bytes_in_flight: u32,
-    // TODO add support for counting bools
+    #[bool_counter("congestion_limited")]
     congestion_limited: bool,
 }
 
@@ -122,6 +130,7 @@ struct RecoveryMetrics<'a> {
 /// Congestion (ECN or packet loss) has occurred
 struct Congestion<'a> {
     path: Path<'a>,
+    #[nominal_counter("source")]
     source: CongestionSource,
 }
 
@@ -129,6 +138,7 @@ struct Congestion<'a> {
 #[deprecated(note = "use on_rx_ack_range_dropped event instead")]
 /// Events related to ACK processing
 struct AckProcessed<'a> {
+    #[nominal_counter("action")]
     action: AckAction,
     path: Path<'a>,
 }
@@ -155,6 +165,7 @@ struct RxAckRangeDropped<'a> {
 #[event("recovery:ack_range_received")]
 /// ACK range was received
 struct AckRangeReceived<'a> {
+    #[nominal_counter("packet")]
     packet_header: PacketHeader,
     path: Path<'a>,
     ack_range: RangeInclusive<u64>,
@@ -163,6 +174,7 @@ struct AckRangeReceived<'a> {
 #[event("recovery:ack_range_sent")]
 /// ACK range was sent
 struct AckRangeSent {
+    #[nominal_counter("packet")]
     packet_header: PacketHeader,
     path_id: u64,
     ack_range: RangeInclusive<u64>,
@@ -171,6 +183,7 @@ struct AckRangeSent {
 #[event("transport:packet_dropped")]
 /// Packet was dropped with the given reason
 struct PacketDropped<'a> {
+    #[nominal_counter("reason")]
     reason: PacketDropReason<'a>,
 }
 
@@ -178,12 +191,18 @@ struct PacketDropped<'a> {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.2.1
 /// Crypto key updated
 struct KeyUpdate {
+    #[nominal_counter("key_type")]
     key_type: KeyType,
+    #[nominal_counter("cipher_suite")]
     cipher_suite: CipherSuite,
 }
 
 #[event("security:key_space_discarded")]
+#[checkpoint("initial.latency", |evt| matches!(evt.space, KeySpace::Initial { .. }))]
+#[checkpoint("handshake.latency", |evt| matches!(evt.space, KeySpace::Handshake { .. }))]
+#[checkpoint("one_rtt.latency", |evt| matches!(evt.space, KeySpace::OneRtt { .. }))]
 struct KeySpaceDiscarded {
+    #[nominal_counter("space")]
     space: KeySpace,
 }
 
@@ -197,20 +216,25 @@ struct ConnectionStarted<'a> {
 #[event("connectivity:connection_closed")]
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.1.3
 /// Connection closed
+#[checkpoint("latency")]
 struct ConnectionClosed {
+    #[nominal_counter("error")]
     error: crate::connection::Error,
 }
 
 #[event("transport:duplicate_packet")]
 /// Duplicate packet received
 struct DuplicatePacket<'a> {
+    #[nominal_counter("kind")]
     packet_header: PacketHeader,
     path: Path<'a>,
+    #[nominal_counter("error")]
     error: DuplicatePacketError,
 }
 
 #[event("transport:transport_parameters_received")]
 /// Transport parameters received by connection
+#[checkpoint("latency")]
 struct TransportParametersReceived<'a> {
     transport_parameters: TransportParameters<'a>,
 }
@@ -219,8 +243,8 @@ struct TransportParametersReceived<'a> {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.3.10
 /// Datagram sent by a connection
 struct DatagramSent {
-    #[measure("bytes", "b")]
-    #[counter("bytes.total", "b")]
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
     len: u16,
 
     /// The GSO offset at which this datagram was written
@@ -237,8 +261,8 @@ struct DatagramSent {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.3.11
 /// Datagram received by a connection
 struct DatagramReceived {
-    #[measure("bytes", "b")]
-    #[counter("bytes.total", "b")]
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
     len: u16,
 }
 
@@ -246,10 +270,10 @@ struct DatagramReceived {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.3.12
 /// Datagram dropped by a connection
 struct DatagramDropped {
-    #[measure("bytes", "b")]
-    #[counter("bytes.total", "b")]
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
     len: u16,
-    // TODO support nominal counters
+    #[nominal_counter("reason")]
     reason: DatagramDropReason,
 }
 
@@ -267,16 +291,22 @@ struct ConnectionIdUpdated<'a> {
 #[event("recovery:ecn_state_changed")]
 struct EcnStateChanged<'a> {
     path: Path<'a>,
+    #[nominal_counter("state")]
     state: EcnState,
 }
 
 #[event("connectivity:connection_migration_denied")]
 struct ConnectionMigrationDenied {
+    #[nominal_counter("reason")]
     reason: MigrationDenyReason,
 }
 
 #[event("connectivity:handshake_status_updated")]
+#[checkpoint("complete.latency", |evt| matches!(evt.status, HandshakeStatus::Complete { .. }))]
+#[checkpoint("confirmed.latency", |evt| matches!(evt.status, HandshakeStatus::Confirmed { .. }))]
+#[checkpoint("handshake_done_acked.latency", |evt| matches!(evt.status, HandshakeStatus::HandshakeDoneAcked { .. }))]
 struct HandshakeStatusUpdated {
+    #[nominal_counter("status")]
     status: HandshakeStatus,
 }
 
@@ -288,32 +318,35 @@ struct TlsExporterReady<'a> {
 #[event("connectivity:path_challenge_updated")]
 /// Path challenge updated
 struct PathChallengeUpdated<'a> {
+    #[nominal_counter("status")]
     path_challenge_status: PathChallengeStatus,
     path: Path<'a>,
     challenge_data: &'a [u8],
 }
 
 #[event("tls:client_hello")]
+#[checkpoint("latency")]
 struct TlsClientHello<'a> {
     payload: &'a [&'a [u8]],
 }
 
 #[event("tls:server_hello")]
+#[checkpoint("latency")]
 struct TlsServerHello<'a> {
     payload: &'a [&'a [u8]],
 }
 
 #[event("transport:rx_stream_progress")]
 struct RxStreamProgress {
-    #[measure("bytes", "b")]
-    #[counter("bytes.total", "b")]
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
     bytes: usize,
 }
 
 #[event("transport:tx_stream_progress")]
 struct TxStreamProgress {
-    #[measure("bytes", "b")]
-    #[counter("bytes.total", "b")]
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
     bytes: usize,
 }
 
@@ -327,10 +360,12 @@ pub struct KeepAliveTimerExpired {
 struct MtuUpdated {
     path_id: u64,
     /// The maximum QUIC datagram size, not including UDP and IP headers
-    #[measure("mtu", "b")]
+    #[measure("mtu", Bytes)]
     mtu: u16,
+    #[nominal_counter("cause")]
     cause: MtuUpdatedCause,
     /// The search for the maximum MTU has completed for now
+    #[bool_counter("search_complete")]
     search_complete: bool,
 }
 
@@ -338,8 +373,10 @@ struct MtuUpdated {
 /// The slow start congestion controller state has been exited
 struct SlowStartExited {
     path_id: u64,
+    #[nominal_counter("cause")]
+    #[nominal_checkpoint("latency")]
     cause: SlowStartExitCause,
-    #[measure("congestion_window", "b")]
+    #[measure("congestion_window", Bytes)]
     congestion_window: u32,
 }
 
@@ -356,10 +393,11 @@ struct DeliveryRateSampled {
 /// The pacing rate has been updated
 struct PacingRateUpdated {
     path_id: u64,
-    #[measure("bytes_per_second", "b")]
+    #[measure("bytes_per_second", Bytes)]
     bytes_per_second: u64,
-    #[measure("burst_size", "b")]
+    #[measure("burst_size", Bytes)]
     burst_size: u32,
+    #[measure("pacing_gain")]
     pacing_gain: f32,
 }
 
@@ -367,11 +405,17 @@ struct PacingRateUpdated {
 /// The BBR state has changed
 struct BbrStateChanged {
     path_id: u64,
+    #[nominal_counter("state")]
     state: BbrState,
 }
 
 #[event("transport:dc_state_changed")]
 /// The DC state has changed
+#[checkpoint("version_negotiated.latency", |evt| matches!(evt.state, DcState::VersionNegotiated { .. }))]
+#[checkpoint("no_version_negotiated.latency", |evt| matches!(evt.state, DcState::VersionNegotiated { .. }))]
+#[checkpoint("path_secrets.latency", |evt| matches!(evt.state, DcState::PathSecretsReady { .. }))]
+#[checkpoint("complete.latency", |evt| matches!(evt.state, DcState::Complete { .. }))]
 struct DcStateChanged {
+    #[nominal_counter("state")]
     state: DcState,
 }

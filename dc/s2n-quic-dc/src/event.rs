@@ -4,7 +4,7 @@
 #[cfg(any(test, feature = "testing"))]
 use s2n_quic_core::event::snapshot;
 
-pub use s2n_quic_core::event::{Event, IntoEvent};
+pub use s2n_quic_core::event::{Event, IntoEvent, Timestamp};
 
 /// Provides metadata related to an event
 pub trait Meta: core::fmt::Debug {
@@ -36,7 +36,7 @@ pub mod metrics {
     pub mod aggregate {
         pub use crate::event::generated::metrics::aggregate::*;
         pub use s2n_quic_core::event::metrics::aggregate::{
-            info, AsMetric, Info, Recorder, Registry,
+            info, AsVariant, BoolRecorder, Info, Metric, NominalRecorder, Recorder, Registry, Units,
         };
 
         pub mod probe {

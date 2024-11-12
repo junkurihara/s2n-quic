@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{Output, Result};
-use heck::ToSnakeCase;
+use heck::{ToShoutySnakeCase, ToSnakeCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::PathBuf;
@@ -487,12 +487,43 @@ impl Enum {
             output.api.extend(quote!(#[non_exhaustive]));
         }
 
+        let mut variant_defs = quote!();
+        let mut variant_matches = quote!();
+
+        for (idx, variant) in variants.iter().enumerate() {
+            let ident = &variant.ident;
+            let name = ident.to_string();
+            let mut name = name.to_shouty_snake_case();
+            name.push('\0');
+
+            variant_defs.extend(quote!(aggregate::info::Variant {
+                name: aggregate::info::Str::new(#name),
+                id: #idx,
+            },));
+
+            variant_matches.extend(quote!(
+                Self::#ident { .. } => #idx,
+            ));
+        }
+
         output.api.extend(quote!(
             #derive_attrs
             #extra_attrs
             #deprecated
             pub enum #ident #generics {
                 #(#api_fields)*
+            }
+
+            #allow_deprecated
+            impl #generics aggregate::AsVariant for #ident #generics {
+                const VARIANTS: &'static [aggregate::info::Variant] = &[#variant_defs];
+
+                #[inline]
+                fn variant_idx(&self) -> usize {
+                    match self {
+                        #variant_matches
+                    }
+                }
             }
         ));
     }
@@ -509,6 +540,7 @@ pub struct ContainerAttrs {
     pub derive_attrs: TokenStream,
     pub builder_derive: bool,
     pub builder_derive_attrs: TokenStream,
+    pub checkpoint: Vec<Checkpoint>,
     pub extra: TokenStream,
 }
 
@@ -527,6 +559,7 @@ impl ContainerAttrs {
             derive_attrs: quote!(),
             builder_derive: false,
             builder_derive_attrs: quote!(),
+            checkpoint: vec![],
             extra: quote!(),
         };
 
@@ -552,16 +585,22 @@ impl ContainerAttrs {
                 if let Meta::List(list) = attr.parse_args().unwrap() {
                     list.to_tokens(&mut v.builder_derive_attrs);
                 }
+            } else if path.is_ident("checkpoint") {
+                v.checkpoint.push(attr.parse_args().unwrap());
             } else {
                 attr.to_tokens(&mut v.extra)
             }
+        }
+
+        if !v.checkpoint.is_empty() {
+            assert_eq!(v.subject, Subject::Connection);
         }
 
         v
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Subject {
     Connection,
     Endpoint,
@@ -694,9 +733,12 @@ pub struct FieldAttrs {
     pub builder: Option<syn::Type>,
     pub snapshot: Option<syn::Expr>,
     pub counter: Vec<Metric>,
+    pub bool_counter: Vec<MetricNoUnit>,
+    pub nominal_counter: Vec<Metric>,
+    pub nominal_checkpoint: Vec<MetricNoUnit>,
     pub measure: Vec<Metric>,
     pub gauge: Vec<Metric>,
-    pub timer: Vec<Timer>,
+    pub timer: Vec<MetricNoUnit>,
     pub extra: TokenStream,
 }
 
@@ -727,6 +769,9 @@ impl FieldAttrs {
             field!(builder);
             field!(snapshot);
             field!(counter[]);
+            field!(bool_counter[]);
+            field!(nominal_counter[]);
+            field!(nominal_checkpoint[]);
             field!(measure[]);
             field!(gauge[]);
             field!(timer[]);
@@ -798,7 +843,7 @@ impl Variant {
 #[derive(Debug)]
 pub struct Metric {
     pub name: syn::LitStr,
-    pub unit: Option<syn::LitStr>,
+    pub unit: Option<syn::Ident>,
 }
 
 impl syn::parse::Parse for Metric {
@@ -817,14 +862,35 @@ impl syn::parse::Parse for Metric {
 }
 
 #[derive(Debug)]
-pub struct Timer {
+pub struct MetricNoUnit {
     pub name: syn::LitStr,
 }
 
-impl syn::parse::Parse for Timer {
+impl syn::parse::Parse for MetricNoUnit {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let name = input.parse()?;
         let _: syn::parse::Nothing = input.parse()?;
         Ok(Self { name })
+    }
+}
+
+#[derive(Debug)]
+pub struct Checkpoint {
+    pub name: syn::LitStr,
+    pub condition: Option<syn::ExprClosure>,
+}
+
+impl syn::parse::Parse for Checkpoint {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let name = input.parse()?;
+        let condition = if input.peek(Token![,]) {
+            let _: Token![,] = input.parse()?;
+            let v = input.parse()?;
+            Some(v)
+        } else {
+            None
+        };
+        let _: syn::parse::Nothing = input.parse()?;
+        Ok(Self { name, condition })
     }
 }

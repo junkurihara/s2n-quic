@@ -19,12 +19,16 @@ struct PathSecretMapUninitialized {
     /// The number of entries in the map
     #[measure("entries")]
     entries: usize,
+
+    #[measure("lifetime", Duration)]
+    lifetime: core::time::Duration,
 }
 
 #[event("path_secret_map:background_handshake_requested")]
 #[subject(endpoint)]
 /// Emitted when a background handshake is requested
 struct PathSecretMapBackgroundHandshakeRequested<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 }
 
@@ -32,6 +36,7 @@ struct PathSecretMapBackgroundHandshakeRequested<'a> {
 #[subject(endpoint)]
 /// Emitted when the entry is inserted into the path secret map
 struct PathSecretMapEntryInserted<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -42,6 +47,7 @@ struct PathSecretMapEntryInserted<'a> {
 #[subject(endpoint)]
 /// Emitted when the entry is considered ready for use
 struct PathSecretMapEntryReady<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -52,6 +58,7 @@ struct PathSecretMapEntryReady<'a> {
 #[subject(endpoint)]
 /// Emitted when an entry is replaced by a new one for the same `peer_address`
 struct PathSecretMapEntryReplaced<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -65,6 +72,7 @@ struct PathSecretMapEntryReplaced<'a> {
 #[subject(endpoint)]
 /// Emitted when an UnknownPathSecret packet was sent
 struct UnknownPathSecretPacketSent<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -75,6 +83,7 @@ struct UnknownPathSecretPacketSent<'a> {
 #[subject(endpoint)]
 /// Emitted when an UnknownPathSecret packet was received
 struct UnknownPathSecretPacketReceived<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -85,6 +94,7 @@ struct UnknownPathSecretPacketReceived<'a> {
 #[subject(endpoint)]
 /// Emitted when an UnknownPathSecret packet was authentic and processed
 struct UnknownPathSecretPacketAccepted<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -95,6 +105,7 @@ struct UnknownPathSecretPacketAccepted<'a> {
 #[subject(endpoint)]
 /// Emitted when an UnknownPathSecret packet was rejected as invalid
 struct UnknownPathSecretPacketRejected<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -105,6 +116,7 @@ struct UnknownPathSecretPacketRejected<'a> {
 #[subject(endpoint)]
 /// Emitted when an UnknownPathSecret packet was dropped due to a missing entry
 struct UnknownPathSecretPacketDropped<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -139,6 +151,7 @@ struct ReplayPotentiallyDetected<'a> {
 #[subject(endpoint)]
 /// Emitted when an ReplayDetected packet was sent
 struct ReplayDetectedPacketSent<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -149,6 +162,7 @@ struct ReplayDetectedPacketSent<'a> {
 #[subject(endpoint)]
 /// Emitted when an ReplayDetected packet was received
 struct ReplayDetectedPacketReceived<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -159,6 +173,7 @@ struct ReplayDetectedPacketReceived<'a> {
 #[subject(endpoint)]
 /// Emitted when an StaleKey packet was authentic and processed
 struct ReplayDetectedPacketAccepted<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -171,6 +186,7 @@ struct ReplayDetectedPacketAccepted<'a> {
 #[subject(endpoint)]
 /// Emitted when an ReplayDetected packet was rejected as invalid
 struct ReplayDetectedPacketRejected<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -181,6 +197,7 @@ struct ReplayDetectedPacketRejected<'a> {
 #[subject(endpoint)]
 /// Emitted when an ReplayDetected packet was dropped due to a missing entry
 struct ReplayDetectedPacketDropped<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -191,6 +208,7 @@ struct ReplayDetectedPacketDropped<'a> {
 #[subject(endpoint)]
 /// Emitted when an StaleKey packet was sent
 struct StaleKeyPacketSent<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -201,6 +219,7 @@ struct StaleKeyPacketSent<'a> {
 #[subject(endpoint)]
 /// Emitted when an StaleKey packet was received
 struct StaleKeyPacketReceived<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -211,6 +230,7 @@ struct StaleKeyPacketReceived<'a> {
 #[subject(endpoint)]
 /// Emitted when an StaleKey packet was authentic and processed
 struct StaleKeyPacketAccepted<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -221,6 +241,7 @@ struct StaleKeyPacketAccepted<'a> {
 #[subject(endpoint)]
 /// Emitted when an StaleKey packet was rejected as invalid
 struct StaleKeyPacketRejected<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
@@ -231,6 +252,7 @@ struct StaleKeyPacketRejected<'a> {
 #[subject(endpoint)]
 /// Emitted when an StaleKey packet was dropped due to a missing entry
 struct StaleKeyPacketDropped<'a> {
+    #[nominal_counter("peer_address.protocol")]
     peer_address: SocketAddress<'a>,
 
     #[snapshot("[HIDDEN]")]
