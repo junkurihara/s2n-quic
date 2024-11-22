@@ -510,8 +510,23 @@ where
             id: *entry.id(),
             key_id,
         };
+        let starting = *entry.receiver().minimum_unseen_key_id();
         match entry.receiver().post_authentication(creds) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                let gap = (*entry.receiver().minimum_unseen_key_id())
+                    // This should never be negative, but saturate anyway to avoid
+                    // wildly large numbers.
+                    .saturating_sub(*creds.key_id);
+
+                self.subscriber()
+                    .on_key_accepted(event::builder::KeyAccepted {
+                        credential_id: creds.id.into_event(),
+                        key_id: key_id.into_event(),
+                        gap,
+                        forward_shift: (*creds.key_id).saturating_sub(starting),
+                    });
+                Ok(())
+            }
             Err(receiver::Error::AlreadyExists) => {
                 self.send_control_error(entry, creds, receiver::Error::AlreadyExists);
 

@@ -32,7 +32,7 @@ struct PathSecretMapBackgroundHandshakeRequested<'a> {
     peer_address: SocketAddress<'a>,
 }
 
-#[event("path_secret_map:entry_replaced")]
+#[event("path_secret_map:entry_inserted")]
 #[subject(endpoint)]
 /// Emitted when the entry is inserted into the path secret map
 struct PathSecretMapEntryInserted<'a> {
@@ -43,7 +43,7 @@ struct PathSecretMapEntryInserted<'a> {
     credential_id: &'a [u8],
 }
 
-#[event("path_secret_map:entry_replaced")]
+#[event("path_secret_map:entry_ready")]
 #[subject(endpoint)]
 /// Emitted when the entry is considered ready for use
 struct PathSecretMapEntryReady<'a> {
@@ -121,6 +121,29 @@ struct UnknownPathSecretPacketDropped<'a> {
 
     #[snapshot("[HIDDEN]")]
     credential_id: &'a [u8],
+}
+
+#[event("path_secret_map:key_accepted")]
+#[subject(endpoint)]
+/// Emitted when a credential is accepted (i.e., post packet authentication and passes replay
+/// check).
+struct KeyAccepted<'a> {
+    #[snapshot("[HIDDEN]")]
+    credential_id: &'a [u8],
+
+    key_id: u64,
+
+    /// How far away this credential is from the leading edge of key IDs (after updating the edge).
+    ///
+    /// Zero if this shifted us forward.
+    #[measure("gap")]
+    gap: u64,
+
+    /// How far away this credential is from the leading edge of key IDs (before updating the edge).
+    ///
+    /// Zero if this didn't change the leading edge.
+    #[measure("forward_shift")]
+    forward_shift: u64,
 }
 
 #[event("path_secret_map:replay_definitely_detected")]
