@@ -23,7 +23,7 @@ s2n-codec = { version = "=0.58.0", path = "../../common/s2n-codec", default-feat
 s2n-quic-core = { version = "=0.58.0", path = "../s2n-quic-core", default-features = false, features = ["alloc"] }
 s2n-quic-crypto = { version = "=0.58.0", path = "../s2n-quic-crypto", default-features = false }
 
-rustls-post-quantum = { version = "0.1.0", optional = true }
+rustls-post-quantum = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
 insta = { version = "1", features = ["json"] }
