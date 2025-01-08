@@ -17,7 +17,7 @@ use s2n_quic_core::{
 use std::{
     hash::{BuildHasherDefault, Hasher},
     net::{Ipv4Addr, SocketAddr},
-    sync::Arc,
+    sync::{Arc, Mutex, Weak},
     time::Duration,
 };
 
@@ -76,7 +76,7 @@ where
 
     // This socket is used *only* for sending secret control packets.
     // FIXME: This will get replaced with sending on a handshake socket associated with the map.
-    pub(super) control_socket: std::net::UdpSocket,
+    pub(super) control_socket: Arc<std::net::UdpSocket>,
 
     pub(super) receiver_shared: Arc<receiver::Shared>,
 
@@ -88,6 +88,10 @@ where
 
     subscriber: S,
 }
+
+// Share control sockets -- we only send on these so it doesn't really matter if there's only one
+// per process.
+static CONTROL_SOCKET: Mutex<Weak<std::net::UdpSocket>> = Mutex::new(Weak::new());
 
 impl<C, S> State<C, S>
 where
@@ -107,8 +111,18 @@ where
         // from that socket as well. Not exactly clear on how to achieve that yet though (both
         // ownership wise since the map doesn't have direct access to handshakes and in terms
         // of implementation).
-        let control_socket = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
-        control_socket.set_nonblocking(true).unwrap();
+        let control_socket = {
+            let mut guard = CONTROL_SOCKET.lock().unwrap();
+            if let Some(socket) = guard.upgrade() {
+                socket
+            } else {
+                let control_socket = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
+                control_socket.set_nonblocking(true).unwrap();
+                let control_socket = Arc::new(control_socket);
+                *guard = Arc::downgrade(&control_socket);
+                control_socket
+            }
+        };
 
         let init_time = clock.get_time();
 
@@ -168,7 +182,8 @@ where
             },
         );
 
-        let Some(entry) = self.get_by_id(packet.credential_id()) else {
+        // don't track access patterns here since it's not initiated by the local application
+        let Some(entry) = self.get_by_id_untracked(packet.credential_id()) else {
             self.subscriber().on_unknown_path_secret_packet_dropped(
                 event::builder::UnknownPathSecretPacketDropped {
                     credential_id: packet.credential_id().into_event(),
@@ -319,7 +334,7 @@ where
         self.ids = fixed_map::Map::with_capacity(new, Default::default());
     }
 
-    fn subscriber(&self) -> event::EndpointPublisherSubscriber<S> {
+    pub(super) fn subscriber(&self) -> event::EndpointPublisherSubscriber<S> {
         use event::IntoEvent as _;
 
         let timestamp = self.clock.get_time().into_event();
@@ -338,11 +353,11 @@ where
     S: event::Subscriber,
 {
     fn secrets_len(&self) -> usize {
-        self.ids.len()
+        self.ids.count()
     }
 
     fn peers_len(&self) -> usize {
-        self.peers.len()
+        self.peers.count()
     }
 
     fn secrets_capacity(&self) -> usize {
@@ -354,8 +369,12 @@ where
         self.peers.clear();
     }
 
-    fn contains(&self, peer: SocketAddr) -> bool {
-        self.peers.contains_key(&peer) && !self.requested_handshakes.pin().contains(&peer)
+    fn contains(&self, peer: &SocketAddr) -> bool {
+        self.peers.contains_key(peer)
+    }
+
+    fn needs_handshake(&self, peer: &SocketAddr) -> bool {
+        self.requested_handshakes.pin().contains(peer)
     }
 
     fn on_new_path_secrets(&self, entry: Arc<Entry>) {
@@ -365,9 +384,20 @@ where
         // On insert clear our interest in a handshake.
         self.requested_handshakes.pin().remove(peer);
 
-        if self.ids.insert(id, entry.clone()).is_some() {
+        let (same, other) = self.ids.insert(id, entry.clone());
+        if same.is_some() {
             // FIXME: Make insertion fallible and fail handshakes instead?
             panic!("inserting a path secret ID twice");
+        }
+
+        if let Some(evicted) = other {
+            self.subscriber().on_path_secret_map_id_entry_evicted(
+                event::builder::PathSecretMapIdEntryEvicted {
+                    peer_address: SocketAddress::from(*evicted.1.peer()).into_event(),
+                    credential_id: evicted.1.id().into_event(),
+                    age: evicted.1.age(),
+                },
+            );
         }
 
         self.subscriber().on_path_secret_map_entry_inserted(
@@ -382,7 +412,8 @@ where
         let id = *entry.id();
         let peer = *entry.peer();
 
-        if let Some(prev) = self.peers.insert(peer, entry) {
+        let (same, other) = self.peers.insert(peer, entry);
+        if let Some(prev) = same {
             // This shouldn't happen due to the panic in on_new_path_secrets, but just
             // in case something went wrong with the secret map we double check here.
             // FIXME: Make insertion fallible and fail handshakes instead?
@@ -400,6 +431,16 @@ where
             );
         }
 
+        if let Some(evicted) = other {
+            self.subscriber().on_path_secret_map_address_entry_evicted(
+                event::builder::PathSecretMapAddressEntryEvicted {
+                    peer_address: SocketAddress::from(*evicted.1.peer()).into_event(),
+                    credential_id: evicted.1.id().into_event(),
+                    age: evicted.1.age(),
+                },
+            );
+        }
+
         self.subscriber()
             .on_path_secret_map_entry_ready(event::builder::PathSecretMapEntryReady {
                 peer_address: SocketAddress::from(peer).into_event(),
@@ -407,12 +448,77 @@ where
             });
     }
 
-    fn get_by_addr(&self, peer: &SocketAddr) -> Option<ReadGuard<Arc<Entry>>> {
+    fn get_by_addr_untracked(&self, peer: &SocketAddr) -> Option<ReadGuard<Arc<Entry>>> {
         self.peers.get_by_key(peer)
     }
 
-    fn get_by_id(&self, id: &Id) -> Option<ReadGuard<Arc<Entry>>> {
+    fn get_by_addr_tracked(&self, peer: &SocketAddr) -> Option<ReadGuard<Arc<Entry>>> {
+        let result = self.peers.get_by_key(peer);
+
+        self.subscriber().on_path_secret_map_address_cache_accessed(
+            event::builder::PathSecretMapAddressCacheAccessed {
+                peer_address: SocketAddress::from(*peer).into_event(),
+                hit: result.is_some(),
+            },
+        );
+
+        if let Some(entry) = &result {
+            entry.set_accessed_addr();
+            self.subscriber()
+                .on_path_secret_map_address_cache_accessed_hit(
+                    event::builder::PathSecretMapAddressCacheAccessedHit {
+                        peer_address: SocketAddress::from(*peer).into_event(),
+                        age: entry.age(),
+                    },
+                );
+        }
+
+        result
+    }
+
+    fn get_by_id_untracked(&self, id: &Id) -> Option<ReadGuard<Arc<Entry>>> {
         self.ids.get_by_key(id)
+    }
+
+    fn get_by_id_tracked(&self, id: &Id) -> Option<Arc<Entry>> {
+        // clone here to avoid holding the lock while we insert into `peers`.
+        let result = self.ids.get_by_key(id).map(|v| Arc::clone(&v));
+
+        self.subscriber().on_path_secret_map_id_cache_accessed(
+            event::builder::PathSecretMapIdCacheAccessed {
+                credential_id: id.into_event(),
+                hit: result.is_some(),
+            },
+        );
+
+        if let Some(entry) = &result {
+            entry.set_accessed_id();
+            self.subscriber().on_path_secret_map_id_cache_accessed_hit(
+                event::builder::PathSecretMapIdCacheAccessedHit {
+                    credential_id: id.into_event(),
+                    age: entry.age(),
+                },
+            );
+        }
+
+        // Re-populate the peer cache with this entry if not already present.
+        //
+        // This ensures that a subsequent lookup by the address will likely succeed, refilling any
+        // previous evictions in the peer map. We skip insertion if there's already a peer entry
+        // since that might be a *newer* peer entry that should continue to stick around.
+        if let Some(entry) = &result {
+            if let Some(evicted) = self.peers.insert_new_key(*entry.peer(), entry.clone()) {
+                self.subscriber().on_path_secret_map_address_entry_evicted(
+                    event::builder::PathSecretMapAddressEntryEvicted {
+                        peer_address: SocketAddress::from(*evicted.1.peer()).into_event(),
+                        credential_id: evicted.1.id().into_event(),
+                        age: evicted.1.age(),
+                    },
+                );
+            }
+        }
+
+        result
     }
 
     fn handle_control_packet(&self, packet: &control::Packet, peer: &SocketAddr) {
@@ -558,6 +664,11 @@ where
                 Err(crypto::open::Error::ReplayPotentiallyDetected { gap: Some(gap) })
             }
         }
+    }
+
+    #[cfg(test)]
+    fn test_stop_cleaner(&self) {
+        self.cleaner.stop();
     }
 }
 

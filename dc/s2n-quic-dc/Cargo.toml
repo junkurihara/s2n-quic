@@ -1,6 +1,6 @@
 [package]
 name = "s2n-quic-dc"
-version = "0.51.0"
+version = "0.52.0"
 description = "Internal crate used by s2n-quic"
 repository = "https://github.com/aws/s2n-quic"
 authors = ["AWS s2n"]
@@ -20,7 +20,7 @@ arrayvec = "0.7"
 atomic-waker = "1"
 aws-lc-rs = "1"
 bitflags = "2"
-bolero-generator = { version = "0.11", optional = true }
+bolero-generator = { version = "0.12", default-features = false, optional = true }
 bytes = "1"
 crossbeam-channel = "0.5"
 crossbeam-epoch = "0.9"
@@ -33,9 +33,9 @@ once_cell = "1"
 pin-project-lite = "0.2"
 rand = { version = "0.8", features = ["small_rng"] }
 rand_chacha = "0.3"
-s2n-codec = { version = "=0.51.0", path = "../../common/s2n-codec", default-features = false }
-s2n-quic-core = { version = "=0.51.0", path = "../../quic/s2n-quic-core", default-features = false }
-s2n-quic-platform = { version = "=0.51.0", path = "../../quic/s2n-quic-platform" }
+s2n-codec = { version = "=0.52.0", path = "../../common/s2n-codec", default-features = false }
+s2n-quic-core = { version = "=0.52.0", path = "../../quic/s2n-quic-core", default-features = false }
+s2n-quic-platform = { version = "=0.52.0", path = "../../quic/s2n-quic-platform" }
 slotmap = "1"
 thiserror = "2"
 tokio = { version = "1", default-features = false, features = ["sync"] }
@@ -46,8 +46,8 @@ zeroize = "1"
 parking_lot = "0.12"
 
 [dev-dependencies]
-bolero = "0.11"
-bolero-generator = "0.11"
+bolero = "0.12"
+bolero-generator = "0.12"
 insta = "1"
 s2n-codec = { path = "../../common/s2n-codec", features = ["testing"] }
 s2n-quic-core = { path = "../../quic/s2n-quic-core", features = ["testing"] }

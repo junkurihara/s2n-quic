@@ -33,7 +33,12 @@ fn map(capacity: usize) -> Map {
 fn map_sub(capacity: usize, sub: Arc<Subscriber>) -> Map {
     let signer = stateless_reset::Signer::random();
 
-    Map::new(signer, capacity, NoopClock, sub)
+    let map = Map::new(signer, capacity, NoopClock, sub);
+
+    // stop the cleaner thread to avoid any out of order events
+    map.test_stop_cleaner();
+
+    map
 }
 
 #[test]
@@ -70,8 +75,8 @@ fn control_packets() {
         };
     }
 
-    let server_entry = server.store.get_by_id(&id).unwrap().clone();
-    let client_entry = client.store.get_by_id(&id).unwrap().clone();
+    let server_entry = server.store.get_by_id_untracked(&id).unwrap().clone();
+    let client_entry = client.store.get_by_id_untracked(&id).unwrap().clone();
 
     let fake_secret =
         crate::path::secret::seal::control::Secret::new(&[0; 32], &aws_lc_rs::hmac::HMAC_SHA256);

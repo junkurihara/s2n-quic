@@ -87,6 +87,18 @@ struct FrameReceived<'a> {
     frame: Frame,
 }
 
+/// A `CONNECTION_CLOSE` frame was received
+///
+/// This event includes additional details from the frame, particularly the
+/// reason (if provided) the peer closed the connection
+#[event("transport:connection_close_frame_received")]
+struct ConnectionCloseFrameReceived<'a> {
+    #[nominal_counter("packet")]
+    packet_header: PacketHeader,
+    path: Path<'a>,
+    frame: ConnectionCloseFrame<'a>,
+}
+
 #[event("recovery:packet_lost")]
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.4.5
 /// Packet was lost
@@ -213,15 +225,6 @@ struct ConnectionStarted<'a> {
     path: Path<'a>,
 }
 
-#[event("connectivity:connection_closed")]
-//= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.1.3
-/// Connection closed
-#[checkpoint("latency")]
-struct ConnectionClosed {
-    #[nominal_counter("error")]
-    error: crate::connection::Error,
-}
-
 #[event("transport:duplicate_packet")]
 /// Duplicate packet received
 struct DuplicatePacket<'a> {
@@ -269,7 +272,11 @@ struct DatagramReceived {
 #[event("transport:datagram_dropped")]
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.3.12
 /// Datagram dropped by a connection
-struct DatagramDropped {
+struct DatagramDropped<'a> {
+    local_addr: SocketAddress<'a>,
+    remote_addr: SocketAddress<'a>,
+    destination_cid: ConnectionId<'a>,
+    source_cid: Option<ConnectionId<'a>>,
     #[measure("bytes", Bytes)]
     #[counter("bytes.total", Bytes)]
     len: u16,
@@ -418,4 +425,14 @@ struct BbrStateChanged {
 struct DcStateChanged {
     #[nominal_counter("state")]
     state: DcState,
+}
+
+// NOTE - This event MUST come last, since connection-level aggregation depends on it
+#[event("connectivity:connection_closed")]
+//= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.1.3
+/// Connection closed
+#[checkpoint("latency")]
+struct ConnectionClosed {
+    #[nominal_counter("error")]
+    error: crate::connection::Error,
 }

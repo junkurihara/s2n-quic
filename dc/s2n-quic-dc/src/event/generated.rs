@@ -5,6 +5,7 @@
 // This file was generated with the `s2n-quic-events` crate and any required
 // changes should be made there.
 
+#![allow(clippy::needless_lifetimes)]
 use super::*;
 pub(crate) mod metrics;
 pub mod api {
@@ -615,43 +616,364 @@ pub mod api {
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
-    pub struct ApplicationWrite {
+    pub struct StreamWriteFlushed {
         #[doc = " The number of bytes that the application tried to write"]
-        pub total_len: usize,
+        pub provided_len: usize,
         #[doc = " The amount that was written"]
-        pub write_len: usize,
+        pub committed_len: usize,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
     }
     #[cfg(any(test, feature = "testing"))]
-    impl crate::event::snapshot::Fmt for ApplicationWrite {
+    impl crate::event::snapshot::Fmt for StreamWriteFlushed {
         fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
-            let mut fmt = fmt.debug_struct("ApplicationWrite");
-            fmt.field("total_len", &self.total_len);
-            fmt.field("write_len", &self.write_len);
+            let mut fmt = fmt.debug_struct("StreamWriteFlushed");
+            fmt.field("provided_len", &self.provided_len);
+            fmt.field("committed_len", &self.committed_len);
+            fmt.field("processing_duration", &self.processing_duration);
             fmt.finish()
         }
     }
-    impl Event for ApplicationWrite {
-        const NAME: &'static str = "application:write";
+    impl Event for StreamWriteFlushed {
+        const NAME: &'static str = "stream:write_flushed";
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
-    pub struct ApplicationRead {
-        #[doc = " The number of bytes that the application tried to read"]
-        pub capacity: usize,
-        #[doc = " The amount that was read"]
-        pub read_len: usize,
+    pub struct StreamWriteFinFlushed {
+        #[doc = " The number of bytes that the application tried to write"]
+        pub provided_len: usize,
+        #[doc = " The amount that was written"]
+        pub committed_len: usize,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
     }
     #[cfg(any(test, feature = "testing"))]
-    impl crate::event::snapshot::Fmt for ApplicationRead {
+    impl crate::event::snapshot::Fmt for StreamWriteFinFlushed {
         fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
-            let mut fmt = fmt.debug_struct("ApplicationRead");
-            fmt.field("capacity", &self.capacity);
-            fmt.field("read_len", &self.read_len);
+            let mut fmt = fmt.debug_struct("StreamWriteFinFlushed");
+            fmt.field("provided_len", &self.provided_len);
+            fmt.field("committed_len", &self.committed_len);
+            fmt.field("processing_duration", &self.processing_duration);
             fmt.finish()
         }
     }
-    impl Event for ApplicationRead {
-        const NAME: &'static str = "application:read";
+    impl Event for StreamWriteFinFlushed {
+        const NAME: &'static str = "stream:write_fin_flushed";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamWriteBlocked {
+        #[doc = " The number of bytes that the application tried to write"]
+        pub provided_len: usize,
+        #[doc = " Indicates that the write was the final offset of the stream"]
+        pub is_fin: bool,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamWriteBlocked {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamWriteBlocked");
+            fmt.field("provided_len", &self.provided_len);
+            fmt.field("is_fin", &self.is_fin);
+            fmt.field("processing_duration", &self.processing_duration);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamWriteBlocked {
+        const NAME: &'static str = "stream:write_blocked";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamWriteErrored {
+        #[doc = " The number of bytes that the application tried to write"]
+        pub provided_len: usize,
+        #[doc = " Indicates that the write was the final offset of the stream"]
+        pub is_fin: bool,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamWriteErrored {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamWriteErrored");
+            fmt.field("provided_len", &self.provided_len);
+            fmt.field("is_fin", &self.is_fin);
+            fmt.field("processing_duration", &self.processing_duration);
+            fmt.field("errno", &self.errno);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamWriteErrored {
+        const NAME: &'static str = "stream:write_errored";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamWriteShutdown {
+        #[doc = " The number of bytes in the send buffer at the time of shutdown"]
+        pub buffer_len: usize,
+        #[doc = " If the stream required a background task to drive the stream shutdown"]
+        pub background: bool,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamWriteShutdown {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamWriteShutdown");
+            fmt.field("buffer_len", &self.buffer_len);
+            fmt.field("background", &self.background);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamWriteShutdown {
+        const NAME: &'static str = "stream:write_shutdown";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamWriteSocketFlushed {
+        #[doc = " The number of bytes that the stream tried to write to the socket"]
+        pub provided_len: usize,
+        #[doc = " The amount that was written"]
+        pub committed_len: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamWriteSocketFlushed {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamWriteSocketFlushed");
+            fmt.field("provided_len", &self.provided_len);
+            fmt.field("committed_len", &self.committed_len);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamWriteSocketFlushed {
+        const NAME: &'static str = "stream:write_socket_flushed";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamWriteSocketBlocked {
+        #[doc = " The number of bytes that the stream tried to write to the socket"]
+        pub provided_len: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamWriteSocketBlocked {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamWriteSocketBlocked");
+            fmt.field("provided_len", &self.provided_len);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamWriteSocketBlocked {
+        const NAME: &'static str = "stream:write_socket_blocked";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamWriteSocketErrored {
+        #[doc = " The number of bytes that the stream tried to write to the socket"]
+        pub provided_len: usize,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamWriteSocketErrored {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamWriteSocketErrored");
+            fmt.field("provided_len", &self.provided_len);
+            fmt.field("errno", &self.errno);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamWriteSocketErrored {
+        const NAME: &'static str = "stream:write_socket_errored";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadFlushed {
+        #[doc = " The number of bytes that the application tried to read"]
+        pub capacity: usize,
+        #[doc = " The amount that was read into the provided buffer"]
+        pub committed_len: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadFlushed {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadFlushed");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("committed_len", &self.committed_len);
+            fmt.field("processing_duration", &self.processing_duration);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadFlushed {
+        const NAME: &'static str = "stream:read_flushed";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadFinFlushed {
+        #[doc = " The number of bytes that the application tried to read"]
+        pub capacity: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadFinFlushed {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadFinFlushed");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("processing_duration", &self.processing_duration);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadFinFlushed {
+        const NAME: &'static str = "stream:read_fin_flushed";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadBlocked {
+        #[doc = " The number of bytes that the application tried to read"]
+        pub capacity: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadBlocked {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadBlocked");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("processing_duration", &self.processing_duration);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadBlocked {
+        const NAME: &'static str = "stream:read_blocked";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadErrored {
+        #[doc = " The number of bytes that the application tried to read"]
+        pub capacity: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadErrored {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadErrored");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("processing_duration", &self.processing_duration);
+            fmt.field("errno", &self.errno);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadErrored {
+        const NAME: &'static str = "stream:read_errored";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadShutdown {
+        #[doc = " If the stream required a background task to drive the stream shutdown"]
+        pub background: bool,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadShutdown {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadShutdown");
+            fmt.field("background", &self.background);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadShutdown {
+        const NAME: &'static str = "stream:read_shutdown";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadSocketFlushed {
+        #[doc = " The number of bytes that the stream tried to read from the socket"]
+        pub capacity: usize,
+        #[doc = " The amount that was read into the provided buffer"]
+        pub committed_len: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadSocketFlushed {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadSocketFlushed");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("committed_len", &self.committed_len);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadSocketFlushed {
+        const NAME: &'static str = "stream:read_socket_flushed";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadSocketBlocked {
+        #[doc = " The number of bytes that the stream tried to read from the socket"]
+        pub capacity: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadSocketBlocked {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadSocketBlocked");
+            fmt.field("capacity", &self.capacity);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadSocketBlocked {
+        const NAME: &'static str = "stream:read_socket_blocked";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct StreamReadSocketErrored {
+        #[doc = " The number of bytes that the stream tried to read from the socket"]
+        pub capacity: usize,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for StreamReadSocketErrored {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("StreamReadSocketErrored");
+            fmt.field("capacity", &self.capacity);
+            fmt.field("errno", &self.errno);
+            fmt.finish()
+        }
+    }
+    impl Event for StreamReadSocketErrored {
+        const NAME: &'static str = "stream:read_socket_errored";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct ConnectionClosed {}
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for ConnectionClosed {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("ConnectionClosed");
+            fmt.finish()
+        }
+    }
+    impl Event for ConnectionClosed {
+        const NAME: &'static str = "connection:closed";
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
@@ -789,6 +1111,50 @@ pub mod api {
     }
     impl<'a> Event for PathSecretMapEntryReplaced<'a> {
         const NAME: &'static str = "path_secret_map:entry_replaced";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when an entry is evicted due to running out of space"]
+    pub struct PathSecretMapIdEntryEvicted<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub credential_id: &'a [u8],
+        #[doc = " Time since insertion of this entry"]
+        pub age: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapIdEntryEvicted<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapIdEntryEvicted");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("age", &self.age);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for PathSecretMapIdEntryEvicted<'a> {
+        const NAME: &'static str = "path_secret_map:id_entry_evicted";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when an entry is evicted due to running out of space"]
+    pub struct PathSecretMapAddressEntryEvicted<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub credential_id: &'a [u8],
+        #[doc = " Time since insertion of this entry"]
+        pub age: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapAddressEntryEvicted<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapAddressEntryEvicted");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("age", &self.age);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for PathSecretMapAddressEntryEvicted<'a> {
+        const NAME: &'static str = "path_secret_map:addr_entry_evicted";
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
@@ -1148,6 +1514,167 @@ pub mod api {
     impl<'a> Event for StaleKeyPacketDropped<'a> {
         const NAME: &'static str = "path_secret_map:stale_key_packet_dropped";
     }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when the cache is accessed by peer address"]
+    #[doc = ""]
+    #[doc = " This can be used to track cache hit ratios"]
+    pub struct PathSecretMapAddressCacheAccessed<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub hit: bool,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapAddressCacheAccessed<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapAddressCacheAccessed");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("hit", &self.hit);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for PathSecretMapAddressCacheAccessed<'a> {
+        const NAME: &'static str = "path_secret_map:address_cache_accessed";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when the cache is accessed by peer address successfully"]
+    #[doc = ""]
+    #[doc = " Provides more information about the accessed entry."]
+    pub struct PathSecretMapAddressCacheAccessedHit<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub age: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapAddressCacheAccessedHit<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapAddressCacheAccessedHit");
+            fmt.field("peer_address", &self.peer_address);
+            fmt.field("age", &self.age);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for PathSecretMapAddressCacheAccessedHit<'a> {
+        const NAME: &'static str = "path_secret_map:address_cache_accessed_entry";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when the cache is accessed by path secret ID"]
+    #[doc = ""]
+    #[doc = " This can be used to track cache hit ratios"]
+    pub struct PathSecretMapIdCacheAccessed<'a> {
+        pub credential_id: &'a [u8],
+        pub hit: bool,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapIdCacheAccessed<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapIdCacheAccessed");
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("hit", &self.hit);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for PathSecretMapIdCacheAccessed<'a> {
+        const NAME: &'static str = "path_secret_map:id_cache_accessed";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when the cache is accessed by path secret ID successfully"]
+    #[doc = ""]
+    #[doc = " Provides more information about the accessed entry."]
+    pub struct PathSecretMapIdCacheAccessedHit<'a> {
+        pub credential_id: &'a [u8],
+        pub age: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for PathSecretMapIdCacheAccessedHit<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapIdCacheAccessedHit");
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("age", &self.age);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for PathSecretMapIdCacheAccessedHit<'a> {
+        const NAME: &'static str = "path_secret_map:id_cache_accessed_entry";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when the cleaner task performed a single cycle"]
+    #[doc = ""]
+    #[doc = " This can be used to track cache utilization"]
+    pub struct PathSecretMapCleanerCycled {
+        #[doc = " The number of Path Secret ID entries left after the cleaning cycle"]
+        pub id_entries: usize,
+        #[doc = " The number of Path Secret ID entries that were retired in the cycle"]
+        pub id_entries_retired: usize,
+        #[doc = " Count of entries accessed since the last cycle"]
+        pub id_entries_active: usize,
+        #[doc = " The utilization percentage of the active number of entries after the cycle"]
+        pub id_entries_active_utilization: f32,
+        #[doc = " The utilization percentage of the available number of entries after the cycle"]
+        pub id_entries_utilization: f32,
+        #[doc = " The utilization percentage of the available number of entries before the cycle"]
+        pub id_entries_initial_utilization: f32,
+        #[doc = " The number of SocketAddress entries left after the cleaning cycle"]
+        pub address_entries: usize,
+        #[doc = " Count of entries accessed since the last cycle"]
+        pub address_entries_active: usize,
+        #[doc = " The utilization percentage of the active number of entries after the cycle"]
+        pub address_entries_active_utilization: f32,
+        #[doc = " The number of SocketAddress entries that were retired in the cycle"]
+        pub address_entries_retired: usize,
+        #[doc = " The utilization percentage of the available number of address entries after the cycle"]
+        pub address_entries_utilization: f32,
+        #[doc = " The utilization percentage of the available number of address entries before the cycle"]
+        pub address_entries_initial_utilization: f32,
+        #[doc = " The number of handshake requests that are pending after the cleaning cycle"]
+        pub handshake_requests: usize,
+        #[doc = " The number of handshake requests that were retired in the cycle"]
+        pub handshake_requests_retired: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for PathSecretMapCleanerCycled {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapCleanerCycled");
+            fmt.field("id_entries", &self.id_entries);
+            fmt.field("id_entries_retired", &self.id_entries_retired);
+            fmt.field("id_entries_active", &self.id_entries_active);
+            fmt.field(
+                "id_entries_active_utilization",
+                &self.id_entries_active_utilization,
+            );
+            fmt.field("id_entries_utilization", &self.id_entries_utilization);
+            fmt.field(
+                "id_entries_initial_utilization",
+                &self.id_entries_initial_utilization,
+            );
+            fmt.field("address_entries", &self.address_entries);
+            fmt.field("address_entries_active", &self.address_entries_active);
+            fmt.field(
+                "address_entries_active_utilization",
+                &self.address_entries_active_utilization,
+            );
+            fmt.field("address_entries_retired", &self.address_entries_retired);
+            fmt.field(
+                "address_entries_utilization",
+                &self.address_entries_utilization,
+            );
+            fmt.field(
+                "address_entries_initial_utilization",
+                &self.address_entries_initial_utilization,
+            );
+            fmt.field("handshake_requests", &self.handshake_requests);
+            fmt.field(
+                "handshake_requests_retired",
+                &self.handshake_requests_retired,
+            );
+            fmt.finish()
+        }
+    }
+    impl Event for PathSecretMapCleanerCycled {
+        const NAME: &'static str = "path_secret_map:cleaner_cycled";
+    }
     impl IntoEvent<builder::AcceptorPacketDropReason> for s2n_codec::DecoderError {
         fn into_event(self) -> builder::AcceptorPacketDropReason {
             use builder::AcceptorPacketDropReason as Reason;
@@ -1202,7 +1729,7 @@ pub mod tracing {
                 local_address,
                 backlog,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_started" , parent : parent , tracing :: Level :: DEBUG , id = tracing :: field :: debug (id) , local_address = tracing :: field :: debug (local_address) , backlog = tracing :: field :: debug (backlog));
+            tracing :: event ! (target : "acceptor_tcp_started" , parent : parent , tracing :: Level :: DEBUG , { id = tracing :: field :: debug (id) , local_address = tracing :: field :: debug (local_address) , backlog = tracing :: field :: debug (backlog) });
         }
         #[inline]
         fn on_acceptor_tcp_loop_iteration_completed(
@@ -1218,7 +1745,7 @@ pub mod tracing {
                 processing_duration,
                 max_sojourn_time,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_loop_iteration_completed" , parent : parent , tracing :: Level :: DEBUG , pending_streams = tracing :: field :: debug (pending_streams) , slots_idle = tracing :: field :: debug (slots_idle) , slot_utilization = tracing :: field :: debug (slot_utilization) , processing_duration = tracing :: field :: debug (processing_duration) , max_sojourn_time = tracing :: field :: debug (max_sojourn_time));
+            tracing :: event ! (target : "acceptor_tcp_loop_iteration_completed" , parent : parent , tracing :: Level :: DEBUG , { pending_streams = tracing :: field :: debug (pending_streams) , slots_idle = tracing :: field :: debug (slots_idle) , slot_utilization = tracing :: field :: debug (slot_utilization) , processing_duration = tracing :: field :: debug (processing_duration) , max_sojourn_time = tracing :: field :: debug (max_sojourn_time) });
         }
         #[inline]
         fn on_acceptor_tcp_fresh_enqueued(
@@ -1228,7 +1755,7 @@ pub mod tracing {
         ) {
             let parent = self.parent(meta);
             let api::AcceptorTcpFreshEnqueued { remote_address } = event;
-            tracing :: event ! (target : "acceptor_tcp_fresh_enqueued" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address));
+            tracing :: event ! (target : "acceptor_tcp_fresh_enqueued" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) });
         }
         #[inline]
         fn on_acceptor_tcp_fresh_batch_completed(
@@ -1242,7 +1769,7 @@ pub mod tracing {
                 dropped,
                 errored,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_fresh_batch_completed" , parent : parent , tracing :: Level :: DEBUG , enqueued = tracing :: field :: debug (enqueued) , dropped = tracing :: field :: debug (dropped) , errored = tracing :: field :: debug (errored));
+            tracing :: event ! (target : "acceptor_tcp_fresh_batch_completed" , parent : parent , tracing :: Level :: DEBUG , { enqueued = tracing :: field :: debug (enqueued) , dropped = tracing :: field :: debug (dropped) , errored = tracing :: field :: debug (errored) });
         }
         #[inline]
         fn on_acceptor_tcp_stream_dropped(
@@ -1255,7 +1782,7 @@ pub mod tracing {
                 remote_address,
                 reason,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_stream_dropped" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , reason = tracing :: field :: debug (reason));
+            tracing :: event ! (target : "acceptor_tcp_stream_dropped" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , reason = tracing :: field :: debug (reason) });
         }
         #[inline]
         fn on_acceptor_tcp_stream_replaced(
@@ -1269,7 +1796,7 @@ pub mod tracing {
                 sojourn_time,
                 buffer_len,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_stream_replaced" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , sojourn_time = tracing :: field :: debug (sojourn_time) , buffer_len = tracing :: field :: debug (buffer_len));
+            tracing :: event ! (target : "acceptor_tcp_stream_replaced" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , sojourn_time = tracing :: field :: debug (sojourn_time) , buffer_len = tracing :: field :: debug (buffer_len) });
         }
         #[inline]
         fn on_acceptor_tcp_packet_received(
@@ -1287,7 +1814,7 @@ pub mod tracing {
                 is_fin_known,
                 sojourn_time,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_packet_received" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , payload_len = tracing :: field :: debug (payload_len) , is_fin = tracing :: field :: debug (is_fin) , is_fin_known = tracing :: field :: debug (is_fin_known) , sojourn_time = tracing :: field :: debug (sojourn_time));
+            tracing :: event ! (target : "acceptor_tcp_packet_received" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , payload_len = tracing :: field :: debug (payload_len) , is_fin = tracing :: field :: debug (is_fin) , is_fin_known = tracing :: field :: debug (is_fin_known) , sojourn_time = tracing :: field :: debug (sojourn_time) });
         }
         #[inline]
         fn on_acceptor_tcp_packet_dropped(
@@ -1301,7 +1828,7 @@ pub mod tracing {
                 reason,
                 sojourn_time,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , reason = tracing :: field :: debug (reason) , sojourn_time = tracing :: field :: debug (sojourn_time));
+            tracing :: event ! (target : "acceptor_tcp_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , reason = tracing :: field :: debug (reason) , sojourn_time = tracing :: field :: debug (sojourn_time) });
         }
         #[inline]
         fn on_acceptor_tcp_stream_enqueued(
@@ -1317,7 +1844,7 @@ pub mod tracing {
                 sojourn_time,
                 blocked_count,
             } = event;
-            tracing :: event ! (target : "acceptor_tcp_stream_enqueued" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , sojourn_time = tracing :: field :: debug (sojourn_time) , blocked_count = tracing :: field :: debug (blocked_count));
+            tracing :: event ! (target : "acceptor_tcp_stream_enqueued" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , sojourn_time = tracing :: field :: debug (sojourn_time) , blocked_count = tracing :: field :: debug (blocked_count) });
         }
         #[inline]
         fn on_acceptor_tcp_io_error(
@@ -1327,7 +1854,7 @@ pub mod tracing {
         ) {
             let parent = self.parent(meta);
             let api::AcceptorTcpIoError { error } = event;
-            tracing :: event ! (target : "acceptor_tcp_io_error" , parent : parent , tracing :: Level :: DEBUG , error = tracing :: field :: debug (error));
+            tracing :: event ! (target : "acceptor_tcp_io_error" , parent : parent , tracing :: Level :: DEBUG , { error = tracing :: field :: debug (error) });
         }
         #[inline]
         fn on_acceptor_udp_started(
@@ -1337,7 +1864,7 @@ pub mod tracing {
         ) {
             let parent = self.parent(meta);
             let api::AcceptorUdpStarted { id, local_address } = event;
-            tracing :: event ! (target : "acceptor_udp_started" , parent : parent , tracing :: Level :: DEBUG , id = tracing :: field :: debug (id) , local_address = tracing :: field :: debug (local_address));
+            tracing :: event ! (target : "acceptor_udp_started" , parent : parent , tracing :: Level :: DEBUG , { id = tracing :: field :: debug (id) , local_address = tracing :: field :: debug (local_address) });
         }
         #[inline]
         fn on_acceptor_udp_datagram_received(
@@ -1350,7 +1877,7 @@ pub mod tracing {
                 remote_address,
                 len,
             } = event;
-            tracing :: event ! (target : "acceptor_udp_datagram_received" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , len = tracing :: field :: debug (len));
+            tracing :: event ! (target : "acceptor_udp_datagram_received" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , len = tracing :: field :: debug (len) });
         }
         #[inline]
         fn on_acceptor_udp_packet_received(
@@ -1369,7 +1896,7 @@ pub mod tracing {
                 is_fin,
                 is_fin_known,
             } = event;
-            tracing :: event ! (target : "acceptor_udp_packet_received" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , payload_len = tracing :: field :: debug (payload_len) , is_zero_offset = tracing :: field :: debug (is_zero_offset) , is_retransmission = tracing :: field :: debug (is_retransmission) , is_fin = tracing :: field :: debug (is_fin) , is_fin_known = tracing :: field :: debug (is_fin_known));
+            tracing :: event ! (target : "acceptor_udp_packet_received" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , payload_len = tracing :: field :: debug (payload_len) , is_zero_offset = tracing :: field :: debug (is_zero_offset) , is_retransmission = tracing :: field :: debug (is_retransmission) , is_fin = tracing :: field :: debug (is_fin) , is_fin_known = tracing :: field :: debug (is_fin_known) });
         }
         #[inline]
         fn on_acceptor_udp_packet_dropped(
@@ -1382,7 +1909,7 @@ pub mod tracing {
                 remote_address,
                 reason,
             } = event;
-            tracing :: event ! (target : "acceptor_udp_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , reason = tracing :: field :: debug (reason));
+            tracing :: event ! (target : "acceptor_udp_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , reason = tracing :: field :: debug (reason) });
         }
         #[inline]
         fn on_acceptor_udp_stream_enqueued(
@@ -1396,7 +1923,7 @@ pub mod tracing {
                 credential_id,
                 stream_id,
             } = event;
-            tracing :: event ! (target : "acceptor_udp_stream_enqueued" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id));
+            tracing :: event ! (target : "acceptor_udp_stream_enqueued" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) });
         }
         #[inline]
         fn on_acceptor_udp_io_error(
@@ -1406,7 +1933,7 @@ pub mod tracing {
         ) {
             let parent = self.parent(meta);
             let api::AcceptorUdpIoError { error } = event;
-            tracing :: event ! (target : "acceptor_udp_io_error" , parent : parent , tracing :: Level :: DEBUG , error = tracing :: field :: debug (error));
+            tracing :: event ! (target : "acceptor_udp_io_error" , parent : parent , tracing :: Level :: DEBUG , { error = tracing :: field :: debug (error) });
         }
         #[inline]
         fn on_acceptor_stream_pruned(
@@ -1422,7 +1949,7 @@ pub mod tracing {
                 sojourn_time,
                 reason,
             } = event;
-            tracing :: event ! (target : "acceptor_stream_pruned" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , sojourn_time = tracing :: field :: debug (sojourn_time) , reason = tracing :: field :: debug (reason));
+            tracing :: event ! (target : "acceptor_stream_pruned" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , sojourn_time = tracing :: field :: debug (sojourn_time) , reason = tracing :: field :: debug (reason) });
         }
         #[inline]
         fn on_acceptor_stream_dequeued(
@@ -1437,32 +1964,237 @@ pub mod tracing {
                 stream_id,
                 sojourn_time,
             } = event;
-            tracing :: event ! (target : "acceptor_stream_dequeued" , parent : parent , tracing :: Level :: DEBUG , remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , sojourn_time = tracing :: field :: debug (sojourn_time));
+            tracing :: event ! (target : "acceptor_stream_dequeued" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , sojourn_time = tracing :: field :: debug (sojourn_time) });
         }
         #[inline]
-        fn on_application_write(
+        fn on_stream_write_flushed(
             &self,
             context: &Self::ConnectionContext,
             _meta: &api::ConnectionMeta,
-            event: &api::ApplicationWrite,
+            event: &api::StreamWriteFlushed,
         ) {
             let id = context.id();
-            let api::ApplicationWrite {
-                total_len,
-                write_len,
+            let api::StreamWriteFlushed {
+                provided_len,
+                committed_len,
+                processing_duration,
             } = event;
-            tracing :: event ! (target : "application_write" , parent : id , tracing :: Level :: DEBUG , total_len = tracing :: field :: debug (total_len) , write_len = tracing :: field :: debug (write_len));
+            tracing :: event ! (target : "stream_write_flushed" , parent : id , tracing :: Level :: DEBUG , { provided_len = tracing :: field :: debug (provided_len) , committed_len = tracing :: field :: debug (committed_len) , processing_duration = tracing :: field :: debug (processing_duration) });
         }
         #[inline]
-        fn on_application_read(
+        fn on_stream_write_fin_flushed(
             &self,
             context: &Self::ConnectionContext,
             _meta: &api::ConnectionMeta,
-            event: &api::ApplicationRead,
+            event: &api::StreamWriteFinFlushed,
         ) {
             let id = context.id();
-            let api::ApplicationRead { capacity, read_len } = event;
-            tracing :: event ! (target : "application_read" , parent : id , tracing :: Level :: DEBUG , capacity = tracing :: field :: debug (capacity) , read_len = tracing :: field :: debug (read_len));
+            let api::StreamWriteFinFlushed {
+                provided_len,
+                committed_len,
+                processing_duration,
+            } = event;
+            tracing :: event ! (target : "stream_write_fin_flushed" , parent : id , tracing :: Level :: DEBUG , { provided_len = tracing :: field :: debug (provided_len) , committed_len = tracing :: field :: debug (committed_len) , processing_duration = tracing :: field :: debug (processing_duration) });
+        }
+        #[inline]
+        fn on_stream_write_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamWriteBlocked,
+        ) {
+            let id = context.id();
+            let api::StreamWriteBlocked {
+                provided_len,
+                is_fin,
+                processing_duration,
+            } = event;
+            tracing :: event ! (target : "stream_write_blocked" , parent : id , tracing :: Level :: DEBUG , { provided_len = tracing :: field :: debug (provided_len) , is_fin = tracing :: field :: debug (is_fin) , processing_duration = tracing :: field :: debug (processing_duration) });
+        }
+        #[inline]
+        fn on_stream_write_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamWriteErrored,
+        ) {
+            let id = context.id();
+            let api::StreamWriteErrored {
+                provided_len,
+                is_fin,
+                processing_duration,
+                errno,
+            } = event;
+            tracing :: event ! (target : "stream_write_errored" , parent : id , tracing :: Level :: DEBUG , { provided_len = tracing :: field :: debug (provided_len) , is_fin = tracing :: field :: debug (is_fin) , processing_duration = tracing :: field :: debug (processing_duration) , errno = tracing :: field :: debug (errno) });
+        }
+        #[inline]
+        fn on_stream_write_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamWriteShutdown,
+        ) {
+            let id = context.id();
+            let api::StreamWriteShutdown {
+                buffer_len,
+                background,
+            } = event;
+            tracing :: event ! (target : "stream_write_shutdown" , parent : id , tracing :: Level :: DEBUG , { buffer_len = tracing :: field :: debug (buffer_len) , background = tracing :: field :: debug (background) });
+        }
+        #[inline]
+        fn on_stream_write_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketFlushed,
+        ) {
+            let id = context.id();
+            let api::StreamWriteSocketFlushed {
+                provided_len,
+                committed_len,
+            } = event;
+            tracing :: event ! (target : "stream_write_socket_flushed" , parent : id , tracing :: Level :: DEBUG , { provided_len = tracing :: field :: debug (provided_len) , committed_len = tracing :: field :: debug (committed_len) });
+        }
+        #[inline]
+        fn on_stream_write_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketBlocked,
+        ) {
+            let id = context.id();
+            let api::StreamWriteSocketBlocked { provided_len } = event;
+            tracing :: event ! (target : "stream_write_socket_blocked" , parent : id , tracing :: Level :: DEBUG , { provided_len = tracing :: field :: debug (provided_len) });
+        }
+        #[inline]
+        fn on_stream_write_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketErrored,
+        ) {
+            let id = context.id();
+            let api::StreamWriteSocketErrored {
+                provided_len,
+                errno,
+            } = event;
+            tracing :: event ! (target : "stream_write_socket_errored" , parent : id , tracing :: Level :: DEBUG , { provided_len = tracing :: field :: debug (provided_len) , errno = tracing :: field :: debug (errno) });
+        }
+        #[inline]
+        fn on_stream_read_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadFlushed,
+        ) {
+            let id = context.id();
+            let api::StreamReadFlushed {
+                capacity,
+                committed_len,
+                processing_duration,
+            } = event;
+            tracing :: event ! (target : "stream_read_flushed" , parent : id , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) , committed_len = tracing :: field :: debug (committed_len) , processing_duration = tracing :: field :: debug (processing_duration) });
+        }
+        #[inline]
+        fn on_stream_read_fin_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadFinFlushed,
+        ) {
+            let id = context.id();
+            let api::StreamReadFinFlushed {
+                capacity,
+                processing_duration,
+            } = event;
+            tracing :: event ! (target : "stream_read_fin_flushed" , parent : id , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) , processing_duration = tracing :: field :: debug (processing_duration) });
+        }
+        #[inline]
+        fn on_stream_read_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadBlocked,
+        ) {
+            let id = context.id();
+            let api::StreamReadBlocked {
+                capacity,
+                processing_duration,
+            } = event;
+            tracing :: event ! (target : "stream_read_blocked" , parent : id , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) , processing_duration = tracing :: field :: debug (processing_duration) });
+        }
+        #[inline]
+        fn on_stream_read_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadErrored,
+        ) {
+            let id = context.id();
+            let api::StreamReadErrored {
+                capacity,
+                processing_duration,
+                errno,
+            } = event;
+            tracing :: event ! (target : "stream_read_errored" , parent : id , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) , processing_duration = tracing :: field :: debug (processing_duration) , errno = tracing :: field :: debug (errno) });
+        }
+        #[inline]
+        fn on_stream_read_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadShutdown,
+        ) {
+            let id = context.id();
+            let api::StreamReadShutdown { background } = event;
+            tracing :: event ! (target : "stream_read_shutdown" , parent : id , tracing :: Level :: DEBUG , { background = tracing :: field :: debug (background) });
+        }
+        #[inline]
+        fn on_stream_read_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketFlushed,
+        ) {
+            let id = context.id();
+            let api::StreamReadSocketFlushed {
+                capacity,
+                committed_len,
+            } = event;
+            tracing :: event ! (target : "stream_read_socket_flushed" , parent : id , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) , committed_len = tracing :: field :: debug (committed_len) });
+        }
+        #[inline]
+        fn on_stream_read_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketBlocked,
+        ) {
+            let id = context.id();
+            let api::StreamReadSocketBlocked { capacity } = event;
+            tracing :: event ! (target : "stream_read_socket_blocked" , parent : id , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) });
+        }
+        #[inline]
+        fn on_stream_read_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketErrored,
+        ) {
+            let id = context.id();
+            let api::StreamReadSocketErrored { capacity, errno } = event;
+            tracing :: event ! (target : "stream_read_socket_errored" , parent : id , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) , errno = tracing :: field :: debug (errno) });
+        }
+        #[inline]
+        fn on_connection_closed(
+            &self,
+            context: &Self::ConnectionContext,
+            _meta: &api::ConnectionMeta,
+            event: &api::ConnectionClosed,
+        ) {
+            let id = context.id();
+            let api::ConnectionClosed {} = event;
+            tracing :: event ! (target : "connection_closed" , parent : id , tracing :: Level :: DEBUG , { });
         }
         #[inline]
         fn on_endpoint_initialized(
@@ -1477,7 +2209,7 @@ pub mod tracing {
                 tcp,
                 udp,
             } = event;
-            tracing :: event ! (target : "endpoint_initialized" , parent : parent , tracing :: Level :: DEBUG , acceptor_addr = tracing :: field :: debug (acceptor_addr) , handshake_addr = tracing :: field :: debug (handshake_addr) , tcp = tracing :: field :: debug (tcp) , udp = tracing :: field :: debug (udp));
+            tracing :: event ! (target : "endpoint_initialized" , parent : parent , tracing :: Level :: DEBUG , { acceptor_addr = tracing :: field :: debug (acceptor_addr) , handshake_addr = tracing :: field :: debug (handshake_addr) , tcp = tracing :: field :: debug (tcp) , udp = tracing :: field :: debug (udp) });
         }
         #[inline]
         fn on_path_secret_map_initialized(
@@ -1487,7 +2219,7 @@ pub mod tracing {
         ) {
             let parent = self.parent(meta);
             let api::PathSecretMapInitialized { capacity } = event;
-            tracing :: event ! (target : "path_secret_map_initialized" , parent : parent , tracing :: Level :: DEBUG , capacity = tracing :: field :: debug (capacity));
+            tracing :: event ! (target : "path_secret_map_initialized" , parent : parent , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) });
         }
         #[inline]
         fn on_path_secret_map_uninitialized(
@@ -1501,7 +2233,7 @@ pub mod tracing {
                 entries,
                 lifetime,
             } = event;
-            tracing :: event ! (target : "path_secret_map_uninitialized" , parent : parent , tracing :: Level :: DEBUG , capacity = tracing :: field :: debug (capacity) , entries = tracing :: field :: debug (entries) , lifetime = tracing :: field :: debug (lifetime));
+            tracing :: event ! (target : "path_secret_map_uninitialized" , parent : parent , tracing :: Level :: DEBUG , { capacity = tracing :: field :: debug (capacity) , entries = tracing :: field :: debug (entries) , lifetime = tracing :: field :: debug (lifetime) });
         }
         #[inline]
         fn on_path_secret_map_background_handshake_requested(
@@ -1511,7 +2243,7 @@ pub mod tracing {
         ) {
             let parent = self.parent(meta);
             let api::PathSecretMapBackgroundHandshakeRequested { peer_address } = event;
-            tracing :: event ! (target : "path_secret_map_background_handshake_requested" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address));
+            tracing :: event ! (target : "path_secret_map_background_handshake_requested" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) });
         }
         #[inline]
         fn on_path_secret_map_entry_inserted(
@@ -1524,7 +2256,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "path_secret_map_entry_inserted" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "path_secret_map_entry_inserted" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_path_secret_map_entry_ready(
@@ -1537,7 +2269,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "path_secret_map_entry_ready" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "path_secret_map_entry_ready" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_path_secret_map_entry_replaced(
@@ -1551,7 +2283,35 @@ pub mod tracing {
                 new_credential_id,
                 previous_credential_id,
             } = event;
-            tracing :: event ! (target : "path_secret_map_entry_replaced" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , new_credential_id = tracing :: field :: debug (new_credential_id) , previous_credential_id = tracing :: field :: debug (previous_credential_id));
+            tracing :: event ! (target : "path_secret_map_entry_replaced" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , new_credential_id = tracing :: field :: debug (new_credential_id) , previous_credential_id = tracing :: field :: debug (previous_credential_id) });
+        }
+        #[inline]
+        fn on_path_secret_map_id_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdEntryEvicted,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapIdEntryEvicted {
+                peer_address,
+                credential_id,
+                age,
+            } = event;
+            tracing :: event ! (target : "path_secret_map_id_entry_evicted" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) , age = tracing :: field :: debug (age) });
+        }
+        #[inline]
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressEntryEvicted,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapAddressEntryEvicted {
+                peer_address,
+                credential_id,
+                age,
+            } = event;
+            tracing :: event ! (target : "path_secret_map_address_entry_evicted" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) , age = tracing :: field :: debug (age) });
         }
         #[inline]
         fn on_unknown_path_secret_packet_sent(
@@ -1564,7 +2324,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "unknown_path_secret_packet_sent" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "unknown_path_secret_packet_sent" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_unknown_path_secret_packet_received(
@@ -1577,7 +2337,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "unknown_path_secret_packet_received" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "unknown_path_secret_packet_received" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_unknown_path_secret_packet_accepted(
@@ -1590,7 +2350,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "unknown_path_secret_packet_accepted" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "unknown_path_secret_packet_accepted" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_unknown_path_secret_packet_rejected(
@@ -1603,7 +2363,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "unknown_path_secret_packet_rejected" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "unknown_path_secret_packet_rejected" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_unknown_path_secret_packet_dropped(
@@ -1616,7 +2376,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "unknown_path_secret_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "unknown_path_secret_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_key_accepted(&self, meta: &api::EndpointMeta, event: &api::KeyAccepted) {
@@ -1627,7 +2387,7 @@ pub mod tracing {
                 gap,
                 forward_shift,
             } = event;
-            tracing :: event ! (target : "key_accepted" , parent : parent , tracing :: Level :: DEBUG , credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id) , gap = tracing :: field :: debug (gap) , forward_shift = tracing :: field :: debug (forward_shift));
+            tracing :: event ! (target : "key_accepted" , parent : parent , tracing :: Level :: DEBUG , { credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id) , gap = tracing :: field :: debug (gap) , forward_shift = tracing :: field :: debug (forward_shift) });
         }
         #[inline]
         fn on_replay_definitely_detected(
@@ -1640,7 +2400,7 @@ pub mod tracing {
                 credential_id,
                 key_id,
             } = event;
-            tracing :: event ! (target : "replay_definitely_detected" , parent : parent , tracing :: Level :: DEBUG , credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id));
+            tracing :: event ! (target : "replay_definitely_detected" , parent : parent , tracing :: Level :: DEBUG , { credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id) });
         }
         #[inline]
         fn on_replay_potentially_detected(
@@ -1654,7 +2414,7 @@ pub mod tracing {
                 key_id,
                 gap,
             } = event;
-            tracing :: event ! (target : "replay_potentially_detected" , parent : parent , tracing :: Level :: DEBUG , credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id) , gap = tracing :: field :: debug (gap));
+            tracing :: event ! (target : "replay_potentially_detected" , parent : parent , tracing :: Level :: DEBUG , { credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id) , gap = tracing :: field :: debug (gap) });
         }
         #[inline]
         fn on_replay_detected_packet_sent(
@@ -1667,7 +2427,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "replay_detected_packet_sent" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "replay_detected_packet_sent" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_replay_detected_packet_received(
@@ -1680,7 +2440,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "replay_detected_packet_received" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "replay_detected_packet_received" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_replay_detected_packet_accepted(
@@ -1694,7 +2454,7 @@ pub mod tracing {
                 credential_id,
                 key_id,
             } = event;
-            tracing :: event ! (target : "replay_detected_packet_accepted" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id));
+            tracing :: event ! (target : "replay_detected_packet_accepted" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) , key_id = tracing :: field :: debug (key_id) });
         }
         #[inline]
         fn on_replay_detected_packet_rejected(
@@ -1707,7 +2467,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "replay_detected_packet_rejected" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "replay_detected_packet_rejected" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_replay_detected_packet_dropped(
@@ -1720,7 +2480,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "replay_detected_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "replay_detected_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_stale_key_packet_sent(
@@ -1733,7 +2493,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "stale_key_packet_sent" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "stale_key_packet_sent" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_stale_key_packet_received(
@@ -1746,7 +2506,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "stale_key_packet_received" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "stale_key_packet_received" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_stale_key_packet_accepted(
@@ -1759,7 +2519,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "stale_key_packet_accepted" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "stale_key_packet_accepted" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_stale_key_packet_rejected(
@@ -1772,7 +2532,7 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "stale_key_packet_rejected" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "stale_key_packet_rejected" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
         }
         #[inline]
         fn on_stale_key_packet_dropped(
@@ -1785,7 +2545,72 @@ pub mod tracing {
                 peer_address,
                 credential_id,
             } = event;
-            tracing :: event ! (target : "stale_key_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id));
+            tracing :: event ! (target : "stale_key_packet_dropped" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , credential_id = tracing :: field :: debug (credential_id) });
+        }
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessed,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapAddressCacheAccessed { peer_address, hit } = event;
+            tracing :: event ! (target : "path_secret_map_address_cache_accessed" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , hit = tracing :: field :: debug (hit) });
+        }
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessedHit,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapAddressCacheAccessedHit { peer_address, age } = event;
+            tracing :: event ! (target : "path_secret_map_address_cache_accessed_hit" , parent : parent , tracing :: Level :: DEBUG , { peer_address = tracing :: field :: debug (peer_address) , age = tracing :: field :: debug (age) });
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessed,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapIdCacheAccessed { credential_id, hit } = event;
+            tracing :: event ! (target : "path_secret_map_id_cache_accessed" , parent : parent , tracing :: Level :: DEBUG , { credential_id = tracing :: field :: debug (credential_id) , hit = tracing :: field :: debug (hit) });
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessedHit,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapIdCacheAccessedHit { credential_id, age } = event;
+            tracing :: event ! (target : "path_secret_map_id_cache_accessed_hit" , parent : parent , tracing :: Level :: DEBUG , { credential_id = tracing :: field :: debug (credential_id) , age = tracing :: field :: debug (age) });
+        }
+        #[inline]
+        fn on_path_secret_map_cleaner_cycled(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapCleanerCycled,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapCleanerCycled {
+                id_entries,
+                id_entries_retired,
+                id_entries_active,
+                id_entries_active_utilization,
+                id_entries_utilization,
+                id_entries_initial_utilization,
+                address_entries,
+                address_entries_active,
+                address_entries_active_utilization,
+                address_entries_retired,
+                address_entries_utilization,
+                address_entries_initial_utilization,
+                handshake_requests,
+                handshake_requests_retired,
+            } = event;
+            tracing :: event ! (target : "path_secret_map_cleaner_cycled" , parent : parent , tracing :: Level :: DEBUG , { id_entries = tracing :: field :: debug (id_entries) , id_entries_retired = tracing :: field :: debug (id_entries_retired) , id_entries_active = tracing :: field :: debug (id_entries_active) , id_entries_active_utilization = tracing :: field :: debug (id_entries_active_utilization) , id_entries_utilization = tracing :: field :: debug (id_entries_utilization) , id_entries_initial_utilization = tracing :: field :: debug (id_entries_initial_utilization) , address_entries = tracing :: field :: debug (address_entries) , address_entries_active = tracing :: field :: debug (address_entries_active) , address_entries_active_utilization = tracing :: field :: debug (address_entries_active_utilization) , address_entries_retired = tracing :: field :: debug (address_entries_retired) , address_entries_utilization = tracing :: field :: debug (address_entries_utilization) , address_entries_initial_utilization = tracing :: field :: debug (address_entries_initial_utilization) , handshake_requests = tracing :: field :: debug (handshake_requests) , handshake_requests_retired = tracing :: field :: debug (handshake_requests_retired) });
         }
     }
 }
@@ -2354,40 +3179,355 @@ pub mod builder {
         }
     }
     #[derive(Clone, Debug)]
-    pub struct ApplicationWrite {
+    pub struct StreamWriteFlushed {
         #[doc = " The number of bytes that the application tried to write"]
-        pub total_len: usize,
+        pub provided_len: usize,
         #[doc = " The amount that was written"]
-        pub write_len: usize,
+        pub committed_len: usize,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
     }
-    impl IntoEvent<api::ApplicationWrite> for ApplicationWrite {
+    impl IntoEvent<api::StreamWriteFlushed> for StreamWriteFlushed {
         #[inline]
-        fn into_event(self) -> api::ApplicationWrite {
-            let ApplicationWrite {
-                total_len,
-                write_len,
+        fn into_event(self) -> api::StreamWriteFlushed {
+            let StreamWriteFlushed {
+                provided_len,
+                committed_len,
+                processing_duration,
             } = self;
-            api::ApplicationWrite {
-                total_len: total_len.into_event(),
-                write_len: write_len.into_event(),
+            api::StreamWriteFlushed {
+                provided_len: provided_len.into_event(),
+                committed_len: committed_len.into_event(),
+                processing_duration: processing_duration.into_event(),
             }
         }
     }
     #[derive(Clone, Debug)]
-    pub struct ApplicationRead {
+    pub struct StreamWriteFinFlushed {
+        #[doc = " The number of bytes that the application tried to write"]
+        pub provided_len: usize,
+        #[doc = " The amount that was written"]
+        pub committed_len: usize,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    impl IntoEvent<api::StreamWriteFinFlushed> for StreamWriteFinFlushed {
+        #[inline]
+        fn into_event(self) -> api::StreamWriteFinFlushed {
+            let StreamWriteFinFlushed {
+                provided_len,
+                committed_len,
+                processing_duration,
+            } = self;
+            api::StreamWriteFinFlushed {
+                provided_len: provided_len.into_event(),
+                committed_len: committed_len.into_event(),
+                processing_duration: processing_duration.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamWriteBlocked {
+        #[doc = " The number of bytes that the application tried to write"]
+        pub provided_len: usize,
+        #[doc = " Indicates that the write was the final offset of the stream"]
+        pub is_fin: bool,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    impl IntoEvent<api::StreamWriteBlocked> for StreamWriteBlocked {
+        #[inline]
+        fn into_event(self) -> api::StreamWriteBlocked {
+            let StreamWriteBlocked {
+                provided_len,
+                is_fin,
+                processing_duration,
+            } = self;
+            api::StreamWriteBlocked {
+                provided_len: provided_len.into_event(),
+                is_fin: is_fin.into_event(),
+                processing_duration: processing_duration.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamWriteErrored {
+        #[doc = " The number of bytes that the application tried to write"]
+        pub provided_len: usize,
+        #[doc = " Indicates that the write was the final offset of the stream"]
+        pub is_fin: bool,
+        #[doc = " The amount of time it took to process the write request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and encryption overhead"]
+        pub processing_duration: core::time::Duration,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    impl IntoEvent<api::StreamWriteErrored> for StreamWriteErrored {
+        #[inline]
+        fn into_event(self) -> api::StreamWriteErrored {
+            let StreamWriteErrored {
+                provided_len,
+                is_fin,
+                processing_duration,
+                errno,
+            } = self;
+            api::StreamWriteErrored {
+                provided_len: provided_len.into_event(),
+                is_fin: is_fin.into_event(),
+                processing_duration: processing_duration.into_event(),
+                errno: errno.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamWriteShutdown {
+        #[doc = " The number of bytes in the send buffer at the time of shutdown"]
+        pub buffer_len: usize,
+        #[doc = " If the stream required a background task to drive the stream shutdown"]
+        pub background: bool,
+    }
+    impl IntoEvent<api::StreamWriteShutdown> for StreamWriteShutdown {
+        #[inline]
+        fn into_event(self) -> api::StreamWriteShutdown {
+            let StreamWriteShutdown {
+                buffer_len,
+                background,
+            } = self;
+            api::StreamWriteShutdown {
+                buffer_len: buffer_len.into_event(),
+                background: background.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamWriteSocketFlushed {
+        #[doc = " The number of bytes that the stream tried to write to the socket"]
+        pub provided_len: usize,
+        #[doc = " The amount that was written"]
+        pub committed_len: usize,
+    }
+    impl IntoEvent<api::StreamWriteSocketFlushed> for StreamWriteSocketFlushed {
+        #[inline]
+        fn into_event(self) -> api::StreamWriteSocketFlushed {
+            let StreamWriteSocketFlushed {
+                provided_len,
+                committed_len,
+            } = self;
+            api::StreamWriteSocketFlushed {
+                provided_len: provided_len.into_event(),
+                committed_len: committed_len.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamWriteSocketBlocked {
+        #[doc = " The number of bytes that the stream tried to write to the socket"]
+        pub provided_len: usize,
+    }
+    impl IntoEvent<api::StreamWriteSocketBlocked> for StreamWriteSocketBlocked {
+        #[inline]
+        fn into_event(self) -> api::StreamWriteSocketBlocked {
+            let StreamWriteSocketBlocked { provided_len } = self;
+            api::StreamWriteSocketBlocked {
+                provided_len: provided_len.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamWriteSocketErrored {
+        #[doc = " The number of bytes that the stream tried to write to the socket"]
+        pub provided_len: usize,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    impl IntoEvent<api::StreamWriteSocketErrored> for StreamWriteSocketErrored {
+        #[inline]
+        fn into_event(self) -> api::StreamWriteSocketErrored {
+            let StreamWriteSocketErrored {
+                provided_len,
+                errno,
+            } = self;
+            api::StreamWriteSocketErrored {
+                provided_len: provided_len.into_event(),
+                errno: errno.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadFlushed {
         #[doc = " The number of bytes that the application tried to read"]
         pub capacity: usize,
-        #[doc = " The amount that was read"]
-        pub read_len: usize,
+        #[doc = " The amount that was read into the provided buffer"]
+        pub committed_len: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
     }
-    impl IntoEvent<api::ApplicationRead> for ApplicationRead {
+    impl IntoEvent<api::StreamReadFlushed> for StreamReadFlushed {
         #[inline]
-        fn into_event(self) -> api::ApplicationRead {
-            let ApplicationRead { capacity, read_len } = self;
-            api::ApplicationRead {
+        fn into_event(self) -> api::StreamReadFlushed {
+            let StreamReadFlushed {
+                capacity,
+                committed_len,
+                processing_duration,
+            } = self;
+            api::StreamReadFlushed {
                 capacity: capacity.into_event(),
-                read_len: read_len.into_event(),
+                committed_len: committed_len.into_event(),
+                processing_duration: processing_duration.into_event(),
             }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadFinFlushed {
+        #[doc = " The number of bytes that the application tried to read"]
+        pub capacity: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    impl IntoEvent<api::StreamReadFinFlushed> for StreamReadFinFlushed {
+        #[inline]
+        fn into_event(self) -> api::StreamReadFinFlushed {
+            let StreamReadFinFlushed {
+                capacity,
+                processing_duration,
+            } = self;
+            api::StreamReadFinFlushed {
+                capacity: capacity.into_event(),
+                processing_duration: processing_duration.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadBlocked {
+        #[doc = " The number of bytes that the application tried to read"]
+        pub capacity: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
+    }
+    impl IntoEvent<api::StreamReadBlocked> for StreamReadBlocked {
+        #[inline]
+        fn into_event(self) -> api::StreamReadBlocked {
+            let StreamReadBlocked {
+                capacity,
+                processing_duration,
+            } = self;
+            api::StreamReadBlocked {
+                capacity: capacity.into_event(),
+                processing_duration: processing_duration.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadErrored {
+        #[doc = " The number of bytes that the application tried to read"]
+        pub capacity: usize,
+        #[doc = " The amount of time it took to process the read request"]
+        #[doc = ""]
+        #[doc = " Note that this includes both any syscall and decryption overhead"]
+        pub processing_duration: core::time::Duration,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    impl IntoEvent<api::StreamReadErrored> for StreamReadErrored {
+        #[inline]
+        fn into_event(self) -> api::StreamReadErrored {
+            let StreamReadErrored {
+                capacity,
+                processing_duration,
+                errno,
+            } = self;
+            api::StreamReadErrored {
+                capacity: capacity.into_event(),
+                processing_duration: processing_duration.into_event(),
+                errno: errno.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadShutdown {
+        #[doc = " If the stream required a background task to drive the stream shutdown"]
+        pub background: bool,
+    }
+    impl IntoEvent<api::StreamReadShutdown> for StreamReadShutdown {
+        #[inline]
+        fn into_event(self) -> api::StreamReadShutdown {
+            let StreamReadShutdown { background } = self;
+            api::StreamReadShutdown {
+                background: background.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadSocketFlushed {
+        #[doc = " The number of bytes that the stream tried to read from the socket"]
+        pub capacity: usize,
+        #[doc = " The amount that was read into the provided buffer"]
+        pub committed_len: usize,
+    }
+    impl IntoEvent<api::StreamReadSocketFlushed> for StreamReadSocketFlushed {
+        #[inline]
+        fn into_event(self) -> api::StreamReadSocketFlushed {
+            let StreamReadSocketFlushed {
+                capacity,
+                committed_len,
+            } = self;
+            api::StreamReadSocketFlushed {
+                capacity: capacity.into_event(),
+                committed_len: committed_len.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadSocketBlocked {
+        #[doc = " The number of bytes that the stream tried to read from the socket"]
+        pub capacity: usize,
+    }
+    impl IntoEvent<api::StreamReadSocketBlocked> for StreamReadSocketBlocked {
+        #[inline]
+        fn into_event(self) -> api::StreamReadSocketBlocked {
+            let StreamReadSocketBlocked { capacity } = self;
+            api::StreamReadSocketBlocked {
+                capacity: capacity.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct StreamReadSocketErrored {
+        #[doc = " The number of bytes that the stream tried to read from the socket"]
+        pub capacity: usize,
+        #[doc = " The system `errno` from the returned error"]
+        pub errno: Option<i32>,
+    }
+    impl IntoEvent<api::StreamReadSocketErrored> for StreamReadSocketErrored {
+        #[inline]
+        fn into_event(self) -> api::StreamReadSocketErrored {
+            let StreamReadSocketErrored { capacity, errno } = self;
+            api::StreamReadSocketErrored {
+                capacity: capacity.into_event(),
+                errno: errno.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct ConnectionClosed {}
+    impl IntoEvent<api::ConnectionClosed> for ConnectionClosed {
+        #[inline]
+        fn into_event(self) -> api::ConnectionClosed {
+            let ConnectionClosed {} = self;
+            api::ConnectionClosed {}
         }
     }
     #[derive(Clone, Debug)]
@@ -2524,6 +3664,54 @@ pub mod builder {
                 peer_address: peer_address.into_event(),
                 new_credential_id: new_credential_id.into_event(),
                 previous_credential_id: previous_credential_id.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when an entry is evicted due to running out of space"]
+    pub struct PathSecretMapIdEntryEvicted<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub credential_id: &'a [u8],
+        #[doc = " Time since insertion of this entry"]
+        pub age: core::time::Duration,
+    }
+    impl<'a> IntoEvent<api::PathSecretMapIdEntryEvicted<'a>> for PathSecretMapIdEntryEvicted<'a> {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapIdEntryEvicted<'a> {
+            let PathSecretMapIdEntryEvicted {
+                peer_address,
+                credential_id,
+                age,
+            } = self;
+            api::PathSecretMapIdEntryEvicted {
+                peer_address: peer_address.into_event(),
+                credential_id: credential_id.into_event(),
+                age: age.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when an entry is evicted due to running out of space"]
+    pub struct PathSecretMapAddressEntryEvicted<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub credential_id: &'a [u8],
+        #[doc = " Time since insertion of this entry"]
+        pub age: core::time::Duration,
+    }
+    impl<'a> IntoEvent<api::PathSecretMapAddressEntryEvicted<'a>>
+        for PathSecretMapAddressEntryEvicted<'a>
+    {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapAddressEntryEvicted<'a> {
+            let PathSecretMapAddressEntryEvicted {
+                peer_address,
+                credential_id,
+                age,
+            } = self;
+            api::PathSecretMapAddressEntryEvicted {
+                peer_address: peer_address.into_event(),
+                credential_id: credential_id.into_event(),
+                age: age.into_event(),
             }
         }
     }
@@ -2895,6 +4083,156 @@ pub mod builder {
             }
         }
     }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when the cache is accessed by peer address"]
+    #[doc = ""]
+    #[doc = " This can be used to track cache hit ratios"]
+    pub struct PathSecretMapAddressCacheAccessed<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub hit: bool,
+    }
+    impl<'a> IntoEvent<api::PathSecretMapAddressCacheAccessed<'a>>
+        for PathSecretMapAddressCacheAccessed<'a>
+    {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapAddressCacheAccessed<'a> {
+            let PathSecretMapAddressCacheAccessed { peer_address, hit } = self;
+            api::PathSecretMapAddressCacheAccessed {
+                peer_address: peer_address.into_event(),
+                hit: hit.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when the cache is accessed by peer address successfully"]
+    #[doc = ""]
+    #[doc = " Provides more information about the accessed entry."]
+    pub struct PathSecretMapAddressCacheAccessedHit<'a> {
+        pub peer_address: SocketAddress<'a>,
+        pub age: core::time::Duration,
+    }
+    impl<'a> IntoEvent<api::PathSecretMapAddressCacheAccessedHit<'a>>
+        for PathSecretMapAddressCacheAccessedHit<'a>
+    {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapAddressCacheAccessedHit<'a> {
+            let PathSecretMapAddressCacheAccessedHit { peer_address, age } = self;
+            api::PathSecretMapAddressCacheAccessedHit {
+                peer_address: peer_address.into_event(),
+                age: age.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when the cache is accessed by path secret ID"]
+    #[doc = ""]
+    #[doc = " This can be used to track cache hit ratios"]
+    pub struct PathSecretMapIdCacheAccessed<'a> {
+        pub credential_id: &'a [u8],
+        pub hit: bool,
+    }
+    impl<'a> IntoEvent<api::PathSecretMapIdCacheAccessed<'a>> for PathSecretMapIdCacheAccessed<'a> {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapIdCacheAccessed<'a> {
+            let PathSecretMapIdCacheAccessed { credential_id, hit } = self;
+            api::PathSecretMapIdCacheAccessed {
+                credential_id: credential_id.into_event(),
+                hit: hit.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when the cache is accessed by path secret ID successfully"]
+    #[doc = ""]
+    #[doc = " Provides more information about the accessed entry."]
+    pub struct PathSecretMapIdCacheAccessedHit<'a> {
+        pub credential_id: &'a [u8],
+        pub age: core::time::Duration,
+    }
+    impl<'a> IntoEvent<api::PathSecretMapIdCacheAccessedHit<'a>>
+        for PathSecretMapIdCacheAccessedHit<'a>
+    {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapIdCacheAccessedHit<'a> {
+            let PathSecretMapIdCacheAccessedHit { credential_id, age } = self;
+            api::PathSecretMapIdCacheAccessedHit {
+                credential_id: credential_id.into_event(),
+                age: age.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when the cleaner task performed a single cycle"]
+    #[doc = ""]
+    #[doc = " This can be used to track cache utilization"]
+    pub struct PathSecretMapCleanerCycled {
+        #[doc = " The number of Path Secret ID entries left after the cleaning cycle"]
+        pub id_entries: usize,
+        #[doc = " The number of Path Secret ID entries that were retired in the cycle"]
+        pub id_entries_retired: usize,
+        #[doc = " Count of entries accessed since the last cycle"]
+        pub id_entries_active: usize,
+        #[doc = " The utilization percentage of the active number of entries after the cycle"]
+        pub id_entries_active_utilization: f32,
+        #[doc = " The utilization percentage of the available number of entries after the cycle"]
+        pub id_entries_utilization: f32,
+        #[doc = " The utilization percentage of the available number of entries before the cycle"]
+        pub id_entries_initial_utilization: f32,
+        #[doc = " The number of SocketAddress entries left after the cleaning cycle"]
+        pub address_entries: usize,
+        #[doc = " Count of entries accessed since the last cycle"]
+        pub address_entries_active: usize,
+        #[doc = " The utilization percentage of the active number of entries after the cycle"]
+        pub address_entries_active_utilization: f32,
+        #[doc = " The number of SocketAddress entries that were retired in the cycle"]
+        pub address_entries_retired: usize,
+        #[doc = " The utilization percentage of the available number of address entries after the cycle"]
+        pub address_entries_utilization: f32,
+        #[doc = " The utilization percentage of the available number of address entries before the cycle"]
+        pub address_entries_initial_utilization: f32,
+        #[doc = " The number of handshake requests that are pending after the cleaning cycle"]
+        pub handshake_requests: usize,
+        #[doc = " The number of handshake requests that were retired in the cycle"]
+        pub handshake_requests_retired: usize,
+    }
+    impl IntoEvent<api::PathSecretMapCleanerCycled> for PathSecretMapCleanerCycled {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapCleanerCycled {
+            let PathSecretMapCleanerCycled {
+                id_entries,
+                id_entries_retired,
+                id_entries_active,
+                id_entries_active_utilization,
+                id_entries_utilization,
+                id_entries_initial_utilization,
+                address_entries,
+                address_entries_active,
+                address_entries_active_utilization,
+                address_entries_retired,
+                address_entries_utilization,
+                address_entries_initial_utilization,
+                handshake_requests,
+                handshake_requests_retired,
+            } = self;
+            api::PathSecretMapCleanerCycled {
+                id_entries: id_entries.into_event(),
+                id_entries_retired: id_entries_retired.into_event(),
+                id_entries_active: id_entries_active.into_event(),
+                id_entries_active_utilization: id_entries_active_utilization.into_event(),
+                id_entries_utilization: id_entries_utilization.into_event(),
+                id_entries_initial_utilization: id_entries_initial_utilization.into_event(),
+                address_entries: address_entries.into_event(),
+                address_entries_active: address_entries_active.into_event(),
+                address_entries_active_utilization: address_entries_active_utilization.into_event(),
+                address_entries_retired: address_entries_retired.into_event(),
+                address_entries_utilization: address_entries_utilization.into_event(),
+                address_entries_initial_utilization: address_entries_initial_utilization
+                    .into_event(),
+                handshake_requests: handshake_requests.into_event(),
+                handshake_requests_retired: handshake_requests_retired.into_event(),
+            }
+        }
+    }
 }
 pub use traits::*;
 mod traits {
@@ -2946,7 +4284,7 @@ mod traits {
         #[doc = r"     }"]
         #[doc = r" }"]
         #[doc = r"  ```"]
-        type ConnectionContext: 'static + Send;
+        type ConnectionContext: 'static + Send + Sync;
         #[doc = r" Creates a context to be passed to each connection-related event"]
         fn create_connection_context(
             &self,
@@ -3133,25 +4471,205 @@ mod traits {
             let _ = meta;
             let _ = event;
         }
-        #[doc = "Called when the `ApplicationWrite` event is triggered"]
+        #[doc = "Called when the `StreamWriteFlushed` event is triggered"]
         #[inline]
-        fn on_application_write(
+        fn on_stream_write_flushed(
             &self,
             context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationWrite,
+            event: &api::StreamWriteFlushed,
         ) {
             let _ = context;
             let _ = meta;
             let _ = event;
         }
-        #[doc = "Called when the `ApplicationRead` event is triggered"]
+        #[doc = "Called when the `StreamWriteFinFlushed` event is triggered"]
         #[inline]
-        fn on_application_read(
+        fn on_stream_write_fin_flushed(
             &self,
             context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationRead,
+            event: &api::StreamWriteFinFlushed,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamWriteBlocked` event is triggered"]
+        #[inline]
+        fn on_stream_write_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteBlocked,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamWriteErrored` event is triggered"]
+        #[inline]
+        fn on_stream_write_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteErrored,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamWriteShutdown` event is triggered"]
+        #[inline]
+        fn on_stream_write_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteShutdown,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamWriteSocketFlushed` event is triggered"]
+        #[inline]
+        fn on_stream_write_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketFlushed,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamWriteSocketBlocked` event is triggered"]
+        #[inline]
+        fn on_stream_write_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketBlocked,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamWriteSocketErrored` event is triggered"]
+        #[inline]
+        fn on_stream_write_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketErrored,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadFlushed` event is triggered"]
+        #[inline]
+        fn on_stream_read_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFlushed,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadFinFlushed` event is triggered"]
+        #[inline]
+        fn on_stream_read_fin_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFinFlushed,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadBlocked` event is triggered"]
+        #[inline]
+        fn on_stream_read_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadBlocked,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadErrored` event is triggered"]
+        #[inline]
+        fn on_stream_read_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadErrored,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadShutdown` event is triggered"]
+        #[inline]
+        fn on_stream_read_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadShutdown,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadSocketFlushed` event is triggered"]
+        #[inline]
+        fn on_stream_read_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketFlushed,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadSocketBlocked` event is triggered"]
+        #[inline]
+        fn on_stream_read_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketBlocked,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `StreamReadSocketErrored` event is triggered"]
+        #[inline]
+        fn on_stream_read_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketErrored,
+        ) {
+            let _ = context;
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `ConnectionClosed` event is triggered"]
+        #[inline]
+        fn on_connection_closed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::ConnectionClosed,
         ) {
             let _ = context;
             let _ = meta;
@@ -3223,6 +4741,26 @@ mod traits {
             &self,
             meta: &api::EndpointMeta,
             event: &api::PathSecretMapEntryReplaced,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapIdEntryEvicted` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_id_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdEntryEvicted,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapAddressEntryEvicted` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressEntryEvicted,
         ) {
             let _ = meta;
             let _ = event;
@@ -3399,6 +4937,56 @@ mod traits {
             &self,
             meta: &api::EndpointMeta,
             event: &api::StaleKeyPacketDropped,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapAddressCacheAccessed` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessed,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapAddressCacheAccessedHit` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessedHit,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapIdCacheAccessed` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessed,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapIdCacheAccessedHit` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessedHit,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapCleanerCycled` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_cleaner_cycled(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapCleanerCycled,
         ) {
             let _ = meta;
             let _ = event;
@@ -3587,22 +5175,165 @@ mod traits {
             self.as_ref().on_acceptor_stream_dequeued(meta, event);
         }
         #[inline]
-        fn on_application_write(
+        fn on_stream_write_flushed(
             &self,
             context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationWrite,
+            event: &api::StreamWriteFlushed,
         ) {
-            self.as_ref().on_application_write(context, meta, event);
+            self.as_ref().on_stream_write_flushed(context, meta, event);
         }
         #[inline]
-        fn on_application_read(
+        fn on_stream_write_fin_flushed(
             &self,
             context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationRead,
+            event: &api::StreamWriteFinFlushed,
         ) {
-            self.as_ref().on_application_read(context, meta, event);
+            self.as_ref()
+                .on_stream_write_fin_flushed(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteBlocked,
+        ) {
+            self.as_ref().on_stream_write_blocked(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteErrored,
+        ) {
+            self.as_ref().on_stream_write_errored(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteShutdown,
+        ) {
+            self.as_ref().on_stream_write_shutdown(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketFlushed,
+        ) {
+            self.as_ref()
+                .on_stream_write_socket_flushed(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketBlocked,
+        ) {
+            self.as_ref()
+                .on_stream_write_socket_blocked(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketErrored,
+        ) {
+            self.as_ref()
+                .on_stream_write_socket_errored(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFlushed,
+        ) {
+            self.as_ref().on_stream_read_flushed(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_fin_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFinFlushed,
+        ) {
+            self.as_ref()
+                .on_stream_read_fin_flushed(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadBlocked,
+        ) {
+            self.as_ref().on_stream_read_blocked(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadErrored,
+        ) {
+            self.as_ref().on_stream_read_errored(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadShutdown,
+        ) {
+            self.as_ref().on_stream_read_shutdown(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketFlushed,
+        ) {
+            self.as_ref()
+                .on_stream_read_socket_flushed(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketBlocked,
+        ) {
+            self.as_ref()
+                .on_stream_read_socket_blocked(context, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketErrored,
+        ) {
+            self.as_ref()
+                .on_stream_read_socket_errored(context, meta, event);
+        }
+        #[inline]
+        fn on_connection_closed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::ConnectionClosed,
+        ) {
+            self.as_ref().on_connection_closed(context, meta, event);
         }
         #[inline]
         fn on_endpoint_initialized(
@@ -3660,6 +5391,24 @@ mod traits {
             event: &api::PathSecretMapEntryReplaced,
         ) {
             self.as_ref().on_path_secret_map_entry_replaced(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdEntryEvicted,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_id_entry_evicted(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressEntryEvicted,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_address_entry_evicted(meta, event);
         }
         #[inline]
         fn on_unknown_path_secret_packet_sent(
@@ -3808,6 +5557,50 @@ mod traits {
             event: &api::StaleKeyPacketDropped,
         ) {
             self.as_ref().on_stale_key_packet_dropped(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessed,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_address_cache_accessed(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessedHit,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_address_cache_accessed_hit(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessed,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_id_cache_accessed(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessedHit,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_id_cache_accessed_hit(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_cleaner_cycled(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapCleanerCycled,
+        ) {
+            self.as_ref().on_path_secret_map_cleaner_cycled(meta, event);
         }
         #[inline]
         fn on_event<M: Meta, E: Event>(&self, meta: &M, event: &E) {
@@ -4005,24 +5798,174 @@ mod traits {
             (self.1).on_acceptor_stream_dequeued(meta, event);
         }
         #[inline]
-        fn on_application_write(
+        fn on_stream_write_flushed(
             &self,
             context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationWrite,
+            event: &api::StreamWriteFlushed,
         ) {
-            (self.0).on_application_write(&context.0, meta, event);
-            (self.1).on_application_write(&context.1, meta, event);
+            (self.0).on_stream_write_flushed(&context.0, meta, event);
+            (self.1).on_stream_write_flushed(&context.1, meta, event);
         }
         #[inline]
-        fn on_application_read(
+        fn on_stream_write_fin_flushed(
             &self,
             context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationRead,
+            event: &api::StreamWriteFinFlushed,
         ) {
-            (self.0).on_application_read(&context.0, meta, event);
-            (self.1).on_application_read(&context.1, meta, event);
+            (self.0).on_stream_write_fin_flushed(&context.0, meta, event);
+            (self.1).on_stream_write_fin_flushed(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteBlocked,
+        ) {
+            (self.0).on_stream_write_blocked(&context.0, meta, event);
+            (self.1).on_stream_write_blocked(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteErrored,
+        ) {
+            (self.0).on_stream_write_errored(&context.0, meta, event);
+            (self.1).on_stream_write_errored(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteShutdown,
+        ) {
+            (self.0).on_stream_write_shutdown(&context.0, meta, event);
+            (self.1).on_stream_write_shutdown(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketFlushed,
+        ) {
+            (self.0).on_stream_write_socket_flushed(&context.0, meta, event);
+            (self.1).on_stream_write_socket_flushed(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketBlocked,
+        ) {
+            (self.0).on_stream_write_socket_blocked(&context.0, meta, event);
+            (self.1).on_stream_write_socket_blocked(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_write_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketErrored,
+        ) {
+            (self.0).on_stream_write_socket_errored(&context.0, meta, event);
+            (self.1).on_stream_write_socket_errored(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFlushed,
+        ) {
+            (self.0).on_stream_read_flushed(&context.0, meta, event);
+            (self.1).on_stream_read_flushed(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_fin_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFinFlushed,
+        ) {
+            (self.0).on_stream_read_fin_flushed(&context.0, meta, event);
+            (self.1).on_stream_read_fin_flushed(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadBlocked,
+        ) {
+            (self.0).on_stream_read_blocked(&context.0, meta, event);
+            (self.1).on_stream_read_blocked(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadErrored,
+        ) {
+            (self.0).on_stream_read_errored(&context.0, meta, event);
+            (self.1).on_stream_read_errored(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_shutdown(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadShutdown,
+        ) {
+            (self.0).on_stream_read_shutdown(&context.0, meta, event);
+            (self.1).on_stream_read_shutdown(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_socket_flushed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketFlushed,
+        ) {
+            (self.0).on_stream_read_socket_flushed(&context.0, meta, event);
+            (self.1).on_stream_read_socket_flushed(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_socket_blocked(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketBlocked,
+        ) {
+            (self.0).on_stream_read_socket_blocked(&context.0, meta, event);
+            (self.1).on_stream_read_socket_blocked(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_stream_read_socket_errored(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketErrored,
+        ) {
+            (self.0).on_stream_read_socket_errored(&context.0, meta, event);
+            (self.1).on_stream_read_socket_errored(&context.1, meta, event);
+        }
+        #[inline]
+        fn on_connection_closed(
+            &self,
+            context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::ConnectionClosed,
+        ) {
+            (self.0).on_connection_closed(&context.0, meta, event);
+            (self.1).on_connection_closed(&context.1, meta, event);
         }
         #[inline]
         fn on_endpoint_initialized(
@@ -4086,6 +6029,24 @@ mod traits {
         ) {
             (self.0).on_path_secret_map_entry_replaced(meta, event);
             (self.1).on_path_secret_map_entry_replaced(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdEntryEvicted,
+        ) {
+            (self.0).on_path_secret_map_id_entry_evicted(meta, event);
+            (self.1).on_path_secret_map_id_entry_evicted(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressEntryEvicted,
+        ) {
+            (self.0).on_path_secret_map_address_entry_evicted(meta, event);
+            (self.1).on_path_secret_map_address_entry_evicted(meta, event);
         }
         #[inline]
         fn on_unknown_path_secret_packet_sent(
@@ -4246,6 +6207,51 @@ mod traits {
             (self.1).on_stale_key_packet_dropped(meta, event);
         }
         #[inline]
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessed,
+        ) {
+            (self.0).on_path_secret_map_address_cache_accessed(meta, event);
+            (self.1).on_path_secret_map_address_cache_accessed(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessedHit,
+        ) {
+            (self.0).on_path_secret_map_address_cache_accessed_hit(meta, event);
+            (self.1).on_path_secret_map_address_cache_accessed_hit(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessed,
+        ) {
+            (self.0).on_path_secret_map_id_cache_accessed(meta, event);
+            (self.1).on_path_secret_map_id_cache_accessed(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessedHit,
+        ) {
+            (self.0).on_path_secret_map_id_cache_accessed_hit(meta, event);
+            (self.1).on_path_secret_map_id_cache_accessed_hit(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_cleaner_cycled(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapCleanerCycled,
+        ) {
+            (self.0).on_path_secret_map_cleaner_cycled(meta, event);
+            (self.1).on_path_secret_map_cleaner_cycled(meta, event);
+        }
+        #[inline]
         fn on_event<M: Meta, E: Event>(&self, meta: &M, event: &E) {
             self.0.on_event(meta, event);
             self.1.on_event(meta, event);
@@ -4331,6 +6337,13 @@ mod traits {
         fn on_path_secret_map_entry_ready(&self, event: builder::PathSecretMapEntryReady);
         #[doc = "Publishes a `PathSecretMapEntryReplaced` event to the publisher's subscriber"]
         fn on_path_secret_map_entry_replaced(&self, event: builder::PathSecretMapEntryReplaced);
+        #[doc = "Publishes a `PathSecretMapIdEntryEvicted` event to the publisher's subscriber"]
+        fn on_path_secret_map_id_entry_evicted(&self, event: builder::PathSecretMapIdEntryEvicted);
+        #[doc = "Publishes a `PathSecretMapAddressEntryEvicted` event to the publisher's subscriber"]
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            event: builder::PathSecretMapAddressEntryEvicted,
+        );
         #[doc = "Publishes a `UnknownPathSecretPacketSent` event to the publisher's subscriber"]
         fn on_unknown_path_secret_packet_sent(&self, event: builder::UnknownPathSecretPacketSent);
         #[doc = "Publishes a `UnknownPathSecretPacketReceived` event to the publisher's subscriber"]
@@ -4379,6 +6392,28 @@ mod traits {
         fn on_stale_key_packet_rejected(&self, event: builder::StaleKeyPacketRejected);
         #[doc = "Publishes a `StaleKeyPacketDropped` event to the publisher's subscriber"]
         fn on_stale_key_packet_dropped(&self, event: builder::StaleKeyPacketDropped);
+        #[doc = "Publishes a `PathSecretMapAddressCacheAccessed` event to the publisher's subscriber"]
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            event: builder::PathSecretMapAddressCacheAccessed,
+        );
+        #[doc = "Publishes a `PathSecretMapAddressCacheAccessedHit` event to the publisher's subscriber"]
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            event: builder::PathSecretMapAddressCacheAccessedHit,
+        );
+        #[doc = "Publishes a `PathSecretMapIdCacheAccessed` event to the publisher's subscriber"]
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            event: builder::PathSecretMapIdCacheAccessed,
+        );
+        #[doc = "Publishes a `PathSecretMapIdCacheAccessedHit` event to the publisher's subscriber"]
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            event: builder::PathSecretMapIdCacheAccessedHit,
+        );
+        #[doc = "Publishes a `PathSecretMapCleanerCycled` event to the publisher's subscriber"]
+        fn on_path_secret_map_cleaner_cycled(&self, event: builder::PathSecretMapCleanerCycled);
         #[doc = r" Returns the QUIC version, if any"]
         fn quic_version(&self) -> Option<u32>;
     }
@@ -4590,6 +6625,23 @@ mod traits {
             self.subscriber.on_event(&self.meta, &event);
         }
         #[inline]
+        fn on_path_secret_map_id_entry_evicted(&self, event: builder::PathSecretMapIdEntryEvicted) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_id_entry_evicted(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            event: builder::PathSecretMapAddressEntryEvicted,
+        ) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_address_entry_evicted(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
         fn on_unknown_path_secret_packet_sent(&self, event: builder::UnknownPathSecretPacketSent) {
             let event = event.into_event();
             self.subscriber
@@ -4726,15 +6778,92 @@ mod traits {
             self.subscriber.on_event(&self.meta, &event);
         }
         #[inline]
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            event: builder::PathSecretMapAddressCacheAccessed,
+        ) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_address_cache_accessed(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            event: builder::PathSecretMapAddressCacheAccessedHit,
+        ) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_address_cache_accessed_hit(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            event: builder::PathSecretMapIdCacheAccessed,
+        ) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_id_cache_accessed(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            event: builder::PathSecretMapIdCacheAccessedHit,
+        ) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_id_cache_accessed_hit(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_cleaner_cycled(&self, event: builder::PathSecretMapCleanerCycled) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_cleaner_cycled(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
         fn quic_version(&self) -> Option<u32> {
             self.quic_version
         }
     }
     pub trait ConnectionPublisher {
-        #[doc = "Publishes a `ApplicationWrite` event to the publisher's subscriber"]
-        fn on_application_write(&self, event: builder::ApplicationWrite);
-        #[doc = "Publishes a `ApplicationRead` event to the publisher's subscriber"]
-        fn on_application_read(&self, event: builder::ApplicationRead);
+        #[doc = "Publishes a `StreamWriteFlushed` event to the publisher's subscriber"]
+        fn on_stream_write_flushed(&self, event: builder::StreamWriteFlushed);
+        #[doc = "Publishes a `StreamWriteFinFlushed` event to the publisher's subscriber"]
+        fn on_stream_write_fin_flushed(&self, event: builder::StreamWriteFinFlushed);
+        #[doc = "Publishes a `StreamWriteBlocked` event to the publisher's subscriber"]
+        fn on_stream_write_blocked(&self, event: builder::StreamWriteBlocked);
+        #[doc = "Publishes a `StreamWriteErrored` event to the publisher's subscriber"]
+        fn on_stream_write_errored(&self, event: builder::StreamWriteErrored);
+        #[doc = "Publishes a `StreamWriteShutdown` event to the publisher's subscriber"]
+        fn on_stream_write_shutdown(&self, event: builder::StreamWriteShutdown);
+        #[doc = "Publishes a `StreamWriteSocketFlushed` event to the publisher's subscriber"]
+        fn on_stream_write_socket_flushed(&self, event: builder::StreamWriteSocketFlushed);
+        #[doc = "Publishes a `StreamWriteSocketBlocked` event to the publisher's subscriber"]
+        fn on_stream_write_socket_blocked(&self, event: builder::StreamWriteSocketBlocked);
+        #[doc = "Publishes a `StreamWriteSocketErrored` event to the publisher's subscriber"]
+        fn on_stream_write_socket_errored(&self, event: builder::StreamWriteSocketErrored);
+        #[doc = "Publishes a `StreamReadFlushed` event to the publisher's subscriber"]
+        fn on_stream_read_flushed(&self, event: builder::StreamReadFlushed);
+        #[doc = "Publishes a `StreamReadFinFlushed` event to the publisher's subscriber"]
+        fn on_stream_read_fin_flushed(&self, event: builder::StreamReadFinFlushed);
+        #[doc = "Publishes a `StreamReadBlocked` event to the publisher's subscriber"]
+        fn on_stream_read_blocked(&self, event: builder::StreamReadBlocked);
+        #[doc = "Publishes a `StreamReadErrored` event to the publisher's subscriber"]
+        fn on_stream_read_errored(&self, event: builder::StreamReadErrored);
+        #[doc = "Publishes a `StreamReadShutdown` event to the publisher's subscriber"]
+        fn on_stream_read_shutdown(&self, event: builder::StreamReadShutdown);
+        #[doc = "Publishes a `StreamReadSocketFlushed` event to the publisher's subscriber"]
+        fn on_stream_read_socket_flushed(&self, event: builder::StreamReadSocketFlushed);
+        #[doc = "Publishes a `StreamReadSocketBlocked` event to the publisher's subscriber"]
+        fn on_stream_read_socket_blocked(&self, event: builder::StreamReadSocketBlocked);
+        #[doc = "Publishes a `StreamReadSocketErrored` event to the publisher's subscriber"]
+        fn on_stream_read_socket_errored(&self, event: builder::StreamReadSocketErrored);
+        #[doc = "Publishes a `ConnectionClosed` event to the publisher's subscriber"]
+        fn on_connection_closed(&self, event: builder::ConnectionClosed);
         #[doc = r" Returns the QUIC version negotiated for the current connection, if any"]
         fn quic_version(&self) -> u32;
         #[doc = r" Returns the [`Subject`] for the current publisher"]
@@ -4772,19 +6901,154 @@ mod traits {
     }
     impl<'a, Sub: Subscriber> ConnectionPublisher for ConnectionPublisherSubscriber<'a, Sub> {
         #[inline]
-        fn on_application_write(&self, event: builder::ApplicationWrite) {
+        fn on_stream_write_flushed(&self, event: builder::StreamWriteFlushed) {
             let event = event.into_event();
             self.subscriber
-                .on_application_write(self.context, &self.meta, &event);
+                .on_stream_write_flushed(self.context, &self.meta, &event);
             self.subscriber
                 .on_connection_event(self.context, &self.meta, &event);
             self.subscriber.on_event(&self.meta, &event);
         }
         #[inline]
-        fn on_application_read(&self, event: builder::ApplicationRead) {
+        fn on_stream_write_fin_flushed(&self, event: builder::StreamWriteFinFlushed) {
             let event = event.into_event();
             self.subscriber
-                .on_application_read(self.context, &self.meta, &event);
+                .on_stream_write_fin_flushed(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_write_blocked(&self, event: builder::StreamWriteBlocked) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_write_blocked(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_write_errored(&self, event: builder::StreamWriteErrored) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_write_errored(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_write_shutdown(&self, event: builder::StreamWriteShutdown) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_write_shutdown(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_write_socket_flushed(&self, event: builder::StreamWriteSocketFlushed) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_write_socket_flushed(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_write_socket_blocked(&self, event: builder::StreamWriteSocketBlocked) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_write_socket_blocked(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_write_socket_errored(&self, event: builder::StreamWriteSocketErrored) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_write_socket_errored(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_flushed(&self, event: builder::StreamReadFlushed) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_flushed(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_fin_flushed(&self, event: builder::StreamReadFinFlushed) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_fin_flushed(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_blocked(&self, event: builder::StreamReadBlocked) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_blocked(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_errored(&self, event: builder::StreamReadErrored) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_errored(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_shutdown(&self, event: builder::StreamReadShutdown) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_shutdown(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_socket_flushed(&self, event: builder::StreamReadSocketFlushed) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_socket_flushed(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_socket_blocked(&self, event: builder::StreamReadSocketBlocked) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_socket_blocked(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_stream_read_socket_errored(&self, event: builder::StreamReadSocketErrored) {
+            let event = event.into_event();
+            self.subscriber
+                .on_stream_read_socket_errored(self.context, &self.meta, &event);
+            self.subscriber
+                .on_connection_event(self.context, &self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_connection_closed(&self, event: builder::ConnectionClosed) {
+            let event = event.into_event();
+            self.subscriber
+                .on_connection_closed(self.context, &self.meta, &event);
             self.subscriber
                 .on_connection_event(self.context, &self.meta, &event);
             self.subscriber.on_event(&self.meta, &event);
@@ -4803,56 +7067,63 @@ mod traits {
 pub mod testing {
     use super::*;
     use crate::event::snapshot::Location;
-    use core::sync::atomic::{AtomicU32, Ordering};
+    use core::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Mutex;
     pub mod endpoint {
         use super::*;
         pub struct Subscriber {
             location: Option<Location>,
             output: Mutex<Vec<String>>,
-            pub acceptor_tcp_started: AtomicU32,
-            pub acceptor_tcp_loop_iteration_completed: AtomicU32,
-            pub acceptor_tcp_fresh_enqueued: AtomicU32,
-            pub acceptor_tcp_fresh_batch_completed: AtomicU32,
-            pub acceptor_tcp_stream_dropped: AtomicU32,
-            pub acceptor_tcp_stream_replaced: AtomicU32,
-            pub acceptor_tcp_packet_received: AtomicU32,
-            pub acceptor_tcp_packet_dropped: AtomicU32,
-            pub acceptor_tcp_stream_enqueued: AtomicU32,
-            pub acceptor_tcp_io_error: AtomicU32,
-            pub acceptor_udp_started: AtomicU32,
-            pub acceptor_udp_datagram_received: AtomicU32,
-            pub acceptor_udp_packet_received: AtomicU32,
-            pub acceptor_udp_packet_dropped: AtomicU32,
-            pub acceptor_udp_stream_enqueued: AtomicU32,
-            pub acceptor_udp_io_error: AtomicU32,
-            pub acceptor_stream_pruned: AtomicU32,
-            pub acceptor_stream_dequeued: AtomicU32,
-            pub endpoint_initialized: AtomicU32,
-            pub path_secret_map_initialized: AtomicU32,
-            pub path_secret_map_uninitialized: AtomicU32,
-            pub path_secret_map_background_handshake_requested: AtomicU32,
-            pub path_secret_map_entry_inserted: AtomicU32,
-            pub path_secret_map_entry_ready: AtomicU32,
-            pub path_secret_map_entry_replaced: AtomicU32,
-            pub unknown_path_secret_packet_sent: AtomicU32,
-            pub unknown_path_secret_packet_received: AtomicU32,
-            pub unknown_path_secret_packet_accepted: AtomicU32,
-            pub unknown_path_secret_packet_rejected: AtomicU32,
-            pub unknown_path_secret_packet_dropped: AtomicU32,
-            pub key_accepted: AtomicU32,
-            pub replay_definitely_detected: AtomicU32,
-            pub replay_potentially_detected: AtomicU32,
-            pub replay_detected_packet_sent: AtomicU32,
-            pub replay_detected_packet_received: AtomicU32,
-            pub replay_detected_packet_accepted: AtomicU32,
-            pub replay_detected_packet_rejected: AtomicU32,
-            pub replay_detected_packet_dropped: AtomicU32,
-            pub stale_key_packet_sent: AtomicU32,
-            pub stale_key_packet_received: AtomicU32,
-            pub stale_key_packet_accepted: AtomicU32,
-            pub stale_key_packet_rejected: AtomicU32,
-            pub stale_key_packet_dropped: AtomicU32,
+            pub acceptor_tcp_started: AtomicU64,
+            pub acceptor_tcp_loop_iteration_completed: AtomicU64,
+            pub acceptor_tcp_fresh_enqueued: AtomicU64,
+            pub acceptor_tcp_fresh_batch_completed: AtomicU64,
+            pub acceptor_tcp_stream_dropped: AtomicU64,
+            pub acceptor_tcp_stream_replaced: AtomicU64,
+            pub acceptor_tcp_packet_received: AtomicU64,
+            pub acceptor_tcp_packet_dropped: AtomicU64,
+            pub acceptor_tcp_stream_enqueued: AtomicU64,
+            pub acceptor_tcp_io_error: AtomicU64,
+            pub acceptor_udp_started: AtomicU64,
+            pub acceptor_udp_datagram_received: AtomicU64,
+            pub acceptor_udp_packet_received: AtomicU64,
+            pub acceptor_udp_packet_dropped: AtomicU64,
+            pub acceptor_udp_stream_enqueued: AtomicU64,
+            pub acceptor_udp_io_error: AtomicU64,
+            pub acceptor_stream_pruned: AtomicU64,
+            pub acceptor_stream_dequeued: AtomicU64,
+            pub endpoint_initialized: AtomicU64,
+            pub path_secret_map_initialized: AtomicU64,
+            pub path_secret_map_uninitialized: AtomicU64,
+            pub path_secret_map_background_handshake_requested: AtomicU64,
+            pub path_secret_map_entry_inserted: AtomicU64,
+            pub path_secret_map_entry_ready: AtomicU64,
+            pub path_secret_map_entry_replaced: AtomicU64,
+            pub path_secret_map_id_entry_evicted: AtomicU64,
+            pub path_secret_map_address_entry_evicted: AtomicU64,
+            pub unknown_path_secret_packet_sent: AtomicU64,
+            pub unknown_path_secret_packet_received: AtomicU64,
+            pub unknown_path_secret_packet_accepted: AtomicU64,
+            pub unknown_path_secret_packet_rejected: AtomicU64,
+            pub unknown_path_secret_packet_dropped: AtomicU64,
+            pub key_accepted: AtomicU64,
+            pub replay_definitely_detected: AtomicU64,
+            pub replay_potentially_detected: AtomicU64,
+            pub replay_detected_packet_sent: AtomicU64,
+            pub replay_detected_packet_received: AtomicU64,
+            pub replay_detected_packet_accepted: AtomicU64,
+            pub replay_detected_packet_rejected: AtomicU64,
+            pub replay_detected_packet_dropped: AtomicU64,
+            pub stale_key_packet_sent: AtomicU64,
+            pub stale_key_packet_received: AtomicU64,
+            pub stale_key_packet_accepted: AtomicU64,
+            pub stale_key_packet_rejected: AtomicU64,
+            pub stale_key_packet_dropped: AtomicU64,
+            pub path_secret_map_address_cache_accessed: AtomicU64,
+            pub path_secret_map_address_cache_accessed_hit: AtomicU64,
+            pub path_secret_map_id_cache_accessed: AtomicU64,
+            pub path_secret_map_id_cache_accessed_hit: AtomicU64,
+            pub path_secret_map_cleaner_cycled: AtomicU64,
         }
         impl Drop for Subscriber {
             fn drop(&mut self) {
@@ -4884,49 +7155,56 @@ pub mod testing {
                 Self {
                     location: None,
                     output: Default::default(),
-                    acceptor_tcp_started: AtomicU32::new(0),
-                    acceptor_tcp_loop_iteration_completed: AtomicU32::new(0),
-                    acceptor_tcp_fresh_enqueued: AtomicU32::new(0),
-                    acceptor_tcp_fresh_batch_completed: AtomicU32::new(0),
-                    acceptor_tcp_stream_dropped: AtomicU32::new(0),
-                    acceptor_tcp_stream_replaced: AtomicU32::new(0),
-                    acceptor_tcp_packet_received: AtomicU32::new(0),
-                    acceptor_tcp_packet_dropped: AtomicU32::new(0),
-                    acceptor_tcp_stream_enqueued: AtomicU32::new(0),
-                    acceptor_tcp_io_error: AtomicU32::new(0),
-                    acceptor_udp_started: AtomicU32::new(0),
-                    acceptor_udp_datagram_received: AtomicU32::new(0),
-                    acceptor_udp_packet_received: AtomicU32::new(0),
-                    acceptor_udp_packet_dropped: AtomicU32::new(0),
-                    acceptor_udp_stream_enqueued: AtomicU32::new(0),
-                    acceptor_udp_io_error: AtomicU32::new(0),
-                    acceptor_stream_pruned: AtomicU32::new(0),
-                    acceptor_stream_dequeued: AtomicU32::new(0),
-                    endpoint_initialized: AtomicU32::new(0),
-                    path_secret_map_initialized: AtomicU32::new(0),
-                    path_secret_map_uninitialized: AtomicU32::new(0),
-                    path_secret_map_background_handshake_requested: AtomicU32::new(0),
-                    path_secret_map_entry_inserted: AtomicU32::new(0),
-                    path_secret_map_entry_ready: AtomicU32::new(0),
-                    path_secret_map_entry_replaced: AtomicU32::new(0),
-                    unknown_path_secret_packet_sent: AtomicU32::new(0),
-                    unknown_path_secret_packet_received: AtomicU32::new(0),
-                    unknown_path_secret_packet_accepted: AtomicU32::new(0),
-                    unknown_path_secret_packet_rejected: AtomicU32::new(0),
-                    unknown_path_secret_packet_dropped: AtomicU32::new(0),
-                    key_accepted: AtomicU32::new(0),
-                    replay_definitely_detected: AtomicU32::new(0),
-                    replay_potentially_detected: AtomicU32::new(0),
-                    replay_detected_packet_sent: AtomicU32::new(0),
-                    replay_detected_packet_received: AtomicU32::new(0),
-                    replay_detected_packet_accepted: AtomicU32::new(0),
-                    replay_detected_packet_rejected: AtomicU32::new(0),
-                    replay_detected_packet_dropped: AtomicU32::new(0),
-                    stale_key_packet_sent: AtomicU32::new(0),
-                    stale_key_packet_received: AtomicU32::new(0),
-                    stale_key_packet_accepted: AtomicU32::new(0),
-                    stale_key_packet_rejected: AtomicU32::new(0),
-                    stale_key_packet_dropped: AtomicU32::new(0),
+                    acceptor_tcp_started: AtomicU64::new(0),
+                    acceptor_tcp_loop_iteration_completed: AtomicU64::new(0),
+                    acceptor_tcp_fresh_enqueued: AtomicU64::new(0),
+                    acceptor_tcp_fresh_batch_completed: AtomicU64::new(0),
+                    acceptor_tcp_stream_dropped: AtomicU64::new(0),
+                    acceptor_tcp_stream_replaced: AtomicU64::new(0),
+                    acceptor_tcp_packet_received: AtomicU64::new(0),
+                    acceptor_tcp_packet_dropped: AtomicU64::new(0),
+                    acceptor_tcp_stream_enqueued: AtomicU64::new(0),
+                    acceptor_tcp_io_error: AtomicU64::new(0),
+                    acceptor_udp_started: AtomicU64::new(0),
+                    acceptor_udp_datagram_received: AtomicU64::new(0),
+                    acceptor_udp_packet_received: AtomicU64::new(0),
+                    acceptor_udp_packet_dropped: AtomicU64::new(0),
+                    acceptor_udp_stream_enqueued: AtomicU64::new(0),
+                    acceptor_udp_io_error: AtomicU64::new(0),
+                    acceptor_stream_pruned: AtomicU64::new(0),
+                    acceptor_stream_dequeued: AtomicU64::new(0),
+                    endpoint_initialized: AtomicU64::new(0),
+                    path_secret_map_initialized: AtomicU64::new(0),
+                    path_secret_map_uninitialized: AtomicU64::new(0),
+                    path_secret_map_background_handshake_requested: AtomicU64::new(0),
+                    path_secret_map_entry_inserted: AtomicU64::new(0),
+                    path_secret_map_entry_ready: AtomicU64::new(0),
+                    path_secret_map_entry_replaced: AtomicU64::new(0),
+                    path_secret_map_id_entry_evicted: AtomicU64::new(0),
+                    path_secret_map_address_entry_evicted: AtomicU64::new(0),
+                    unknown_path_secret_packet_sent: AtomicU64::new(0),
+                    unknown_path_secret_packet_received: AtomicU64::new(0),
+                    unknown_path_secret_packet_accepted: AtomicU64::new(0),
+                    unknown_path_secret_packet_rejected: AtomicU64::new(0),
+                    unknown_path_secret_packet_dropped: AtomicU64::new(0),
+                    key_accepted: AtomicU64::new(0),
+                    replay_definitely_detected: AtomicU64::new(0),
+                    replay_potentially_detected: AtomicU64::new(0),
+                    replay_detected_packet_sent: AtomicU64::new(0),
+                    replay_detected_packet_received: AtomicU64::new(0),
+                    replay_detected_packet_accepted: AtomicU64::new(0),
+                    replay_detected_packet_rejected: AtomicU64::new(0),
+                    replay_detected_packet_dropped: AtomicU64::new(0),
+                    stale_key_packet_sent: AtomicU64::new(0),
+                    stale_key_packet_received: AtomicU64::new(0),
+                    stale_key_packet_accepted: AtomicU64::new(0),
+                    stale_key_packet_rejected: AtomicU64::new(0),
+                    stale_key_packet_dropped: AtomicU64::new(0),
+                    path_secret_map_address_cache_accessed: AtomicU64::new(0),
+                    path_secret_map_address_cache_accessed_hit: AtomicU64::new(0),
+                    path_secret_map_id_cache_accessed: AtomicU64::new(0),
+                    path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
+                    path_secret_map_cleaner_cycled: AtomicU64::new(0),
                 }
             }
         }
@@ -5232,6 +7510,30 @@ pub mod testing {
                 let out = format!("{meta:?} {event:?}");
                 self.output.lock().unwrap().push(out);
             }
+            fn on_path_secret_map_id_entry_evicted(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapIdEntryEvicted,
+            ) {
+                self.path_secret_map_id_entry_evicted
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_path_secret_map_address_entry_evicted(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapAddressEntryEvicted,
+            ) {
+                self.path_secret_map_address_entry_evicted
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
             fn on_unknown_path_secret_packet_sent(
                 &self,
                 meta: &api::EndpointMeta,
@@ -5442,57 +7744,139 @@ pub mod testing {
                 let out = format!("{meta:?} {event:?}");
                 self.output.lock().unwrap().push(out);
             }
+            fn on_path_secret_map_address_cache_accessed(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapAddressCacheAccessed,
+            ) {
+                self.path_secret_map_address_cache_accessed
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_path_secret_map_address_cache_accessed_hit(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapAddressCacheAccessedHit,
+            ) {
+                self.path_secret_map_address_cache_accessed_hit
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_path_secret_map_id_cache_accessed(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapIdCacheAccessed,
+            ) {
+                self.path_secret_map_id_cache_accessed
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_path_secret_map_id_cache_accessed_hit(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapIdCacheAccessedHit,
+            ) {
+                self.path_secret_map_id_cache_accessed_hit
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_path_secret_map_cleaner_cycled(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapCleanerCycled,
+            ) {
+                self.path_secret_map_cleaner_cycled
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
         }
     }
     #[derive(Debug)]
     pub struct Subscriber {
         location: Option<Location>,
         output: Mutex<Vec<String>>,
-        pub acceptor_tcp_started: AtomicU32,
-        pub acceptor_tcp_loop_iteration_completed: AtomicU32,
-        pub acceptor_tcp_fresh_enqueued: AtomicU32,
-        pub acceptor_tcp_fresh_batch_completed: AtomicU32,
-        pub acceptor_tcp_stream_dropped: AtomicU32,
-        pub acceptor_tcp_stream_replaced: AtomicU32,
-        pub acceptor_tcp_packet_received: AtomicU32,
-        pub acceptor_tcp_packet_dropped: AtomicU32,
-        pub acceptor_tcp_stream_enqueued: AtomicU32,
-        pub acceptor_tcp_io_error: AtomicU32,
-        pub acceptor_udp_started: AtomicU32,
-        pub acceptor_udp_datagram_received: AtomicU32,
-        pub acceptor_udp_packet_received: AtomicU32,
-        pub acceptor_udp_packet_dropped: AtomicU32,
-        pub acceptor_udp_stream_enqueued: AtomicU32,
-        pub acceptor_udp_io_error: AtomicU32,
-        pub acceptor_stream_pruned: AtomicU32,
-        pub acceptor_stream_dequeued: AtomicU32,
-        pub application_write: AtomicU32,
-        pub application_read: AtomicU32,
-        pub endpoint_initialized: AtomicU32,
-        pub path_secret_map_initialized: AtomicU32,
-        pub path_secret_map_uninitialized: AtomicU32,
-        pub path_secret_map_background_handshake_requested: AtomicU32,
-        pub path_secret_map_entry_inserted: AtomicU32,
-        pub path_secret_map_entry_ready: AtomicU32,
-        pub path_secret_map_entry_replaced: AtomicU32,
-        pub unknown_path_secret_packet_sent: AtomicU32,
-        pub unknown_path_secret_packet_received: AtomicU32,
-        pub unknown_path_secret_packet_accepted: AtomicU32,
-        pub unknown_path_secret_packet_rejected: AtomicU32,
-        pub unknown_path_secret_packet_dropped: AtomicU32,
-        pub key_accepted: AtomicU32,
-        pub replay_definitely_detected: AtomicU32,
-        pub replay_potentially_detected: AtomicU32,
-        pub replay_detected_packet_sent: AtomicU32,
-        pub replay_detected_packet_received: AtomicU32,
-        pub replay_detected_packet_accepted: AtomicU32,
-        pub replay_detected_packet_rejected: AtomicU32,
-        pub replay_detected_packet_dropped: AtomicU32,
-        pub stale_key_packet_sent: AtomicU32,
-        pub stale_key_packet_received: AtomicU32,
-        pub stale_key_packet_accepted: AtomicU32,
-        pub stale_key_packet_rejected: AtomicU32,
-        pub stale_key_packet_dropped: AtomicU32,
+        pub acceptor_tcp_started: AtomicU64,
+        pub acceptor_tcp_loop_iteration_completed: AtomicU64,
+        pub acceptor_tcp_fresh_enqueued: AtomicU64,
+        pub acceptor_tcp_fresh_batch_completed: AtomicU64,
+        pub acceptor_tcp_stream_dropped: AtomicU64,
+        pub acceptor_tcp_stream_replaced: AtomicU64,
+        pub acceptor_tcp_packet_received: AtomicU64,
+        pub acceptor_tcp_packet_dropped: AtomicU64,
+        pub acceptor_tcp_stream_enqueued: AtomicU64,
+        pub acceptor_tcp_io_error: AtomicU64,
+        pub acceptor_udp_started: AtomicU64,
+        pub acceptor_udp_datagram_received: AtomicU64,
+        pub acceptor_udp_packet_received: AtomicU64,
+        pub acceptor_udp_packet_dropped: AtomicU64,
+        pub acceptor_udp_stream_enqueued: AtomicU64,
+        pub acceptor_udp_io_error: AtomicU64,
+        pub acceptor_stream_pruned: AtomicU64,
+        pub acceptor_stream_dequeued: AtomicU64,
+        pub stream_write_flushed: AtomicU64,
+        pub stream_write_fin_flushed: AtomicU64,
+        pub stream_write_blocked: AtomicU64,
+        pub stream_write_errored: AtomicU64,
+        pub stream_write_shutdown: AtomicU64,
+        pub stream_write_socket_flushed: AtomicU64,
+        pub stream_write_socket_blocked: AtomicU64,
+        pub stream_write_socket_errored: AtomicU64,
+        pub stream_read_flushed: AtomicU64,
+        pub stream_read_fin_flushed: AtomicU64,
+        pub stream_read_blocked: AtomicU64,
+        pub stream_read_errored: AtomicU64,
+        pub stream_read_shutdown: AtomicU64,
+        pub stream_read_socket_flushed: AtomicU64,
+        pub stream_read_socket_blocked: AtomicU64,
+        pub stream_read_socket_errored: AtomicU64,
+        pub connection_closed: AtomicU64,
+        pub endpoint_initialized: AtomicU64,
+        pub path_secret_map_initialized: AtomicU64,
+        pub path_secret_map_uninitialized: AtomicU64,
+        pub path_secret_map_background_handshake_requested: AtomicU64,
+        pub path_secret_map_entry_inserted: AtomicU64,
+        pub path_secret_map_entry_ready: AtomicU64,
+        pub path_secret_map_entry_replaced: AtomicU64,
+        pub path_secret_map_id_entry_evicted: AtomicU64,
+        pub path_secret_map_address_entry_evicted: AtomicU64,
+        pub unknown_path_secret_packet_sent: AtomicU64,
+        pub unknown_path_secret_packet_received: AtomicU64,
+        pub unknown_path_secret_packet_accepted: AtomicU64,
+        pub unknown_path_secret_packet_rejected: AtomicU64,
+        pub unknown_path_secret_packet_dropped: AtomicU64,
+        pub key_accepted: AtomicU64,
+        pub replay_definitely_detected: AtomicU64,
+        pub replay_potentially_detected: AtomicU64,
+        pub replay_detected_packet_sent: AtomicU64,
+        pub replay_detected_packet_received: AtomicU64,
+        pub replay_detected_packet_accepted: AtomicU64,
+        pub replay_detected_packet_rejected: AtomicU64,
+        pub replay_detected_packet_dropped: AtomicU64,
+        pub stale_key_packet_sent: AtomicU64,
+        pub stale_key_packet_received: AtomicU64,
+        pub stale_key_packet_accepted: AtomicU64,
+        pub stale_key_packet_rejected: AtomicU64,
+        pub stale_key_packet_dropped: AtomicU64,
+        pub path_secret_map_address_cache_accessed: AtomicU64,
+        pub path_secret_map_address_cache_accessed_hit: AtomicU64,
+        pub path_secret_map_id_cache_accessed: AtomicU64,
+        pub path_secret_map_id_cache_accessed_hit: AtomicU64,
+        pub path_secret_map_cleaner_cycled: AtomicU64,
     }
     impl Drop for Subscriber {
         fn drop(&mut self) {
@@ -5524,51 +7908,73 @@ pub mod testing {
             Self {
                 location: None,
                 output: Default::default(),
-                acceptor_tcp_started: AtomicU32::new(0),
-                acceptor_tcp_loop_iteration_completed: AtomicU32::new(0),
-                acceptor_tcp_fresh_enqueued: AtomicU32::new(0),
-                acceptor_tcp_fresh_batch_completed: AtomicU32::new(0),
-                acceptor_tcp_stream_dropped: AtomicU32::new(0),
-                acceptor_tcp_stream_replaced: AtomicU32::new(0),
-                acceptor_tcp_packet_received: AtomicU32::new(0),
-                acceptor_tcp_packet_dropped: AtomicU32::new(0),
-                acceptor_tcp_stream_enqueued: AtomicU32::new(0),
-                acceptor_tcp_io_error: AtomicU32::new(0),
-                acceptor_udp_started: AtomicU32::new(0),
-                acceptor_udp_datagram_received: AtomicU32::new(0),
-                acceptor_udp_packet_received: AtomicU32::new(0),
-                acceptor_udp_packet_dropped: AtomicU32::new(0),
-                acceptor_udp_stream_enqueued: AtomicU32::new(0),
-                acceptor_udp_io_error: AtomicU32::new(0),
-                acceptor_stream_pruned: AtomicU32::new(0),
-                acceptor_stream_dequeued: AtomicU32::new(0),
-                application_write: AtomicU32::new(0),
-                application_read: AtomicU32::new(0),
-                endpoint_initialized: AtomicU32::new(0),
-                path_secret_map_initialized: AtomicU32::new(0),
-                path_secret_map_uninitialized: AtomicU32::new(0),
-                path_secret_map_background_handshake_requested: AtomicU32::new(0),
-                path_secret_map_entry_inserted: AtomicU32::new(0),
-                path_secret_map_entry_ready: AtomicU32::new(0),
-                path_secret_map_entry_replaced: AtomicU32::new(0),
-                unknown_path_secret_packet_sent: AtomicU32::new(0),
-                unknown_path_secret_packet_received: AtomicU32::new(0),
-                unknown_path_secret_packet_accepted: AtomicU32::new(0),
-                unknown_path_secret_packet_rejected: AtomicU32::new(0),
-                unknown_path_secret_packet_dropped: AtomicU32::new(0),
-                key_accepted: AtomicU32::new(0),
-                replay_definitely_detected: AtomicU32::new(0),
-                replay_potentially_detected: AtomicU32::new(0),
-                replay_detected_packet_sent: AtomicU32::new(0),
-                replay_detected_packet_received: AtomicU32::new(0),
-                replay_detected_packet_accepted: AtomicU32::new(0),
-                replay_detected_packet_rejected: AtomicU32::new(0),
-                replay_detected_packet_dropped: AtomicU32::new(0),
-                stale_key_packet_sent: AtomicU32::new(0),
-                stale_key_packet_received: AtomicU32::new(0),
-                stale_key_packet_accepted: AtomicU32::new(0),
-                stale_key_packet_rejected: AtomicU32::new(0),
-                stale_key_packet_dropped: AtomicU32::new(0),
+                acceptor_tcp_started: AtomicU64::new(0),
+                acceptor_tcp_loop_iteration_completed: AtomicU64::new(0),
+                acceptor_tcp_fresh_enqueued: AtomicU64::new(0),
+                acceptor_tcp_fresh_batch_completed: AtomicU64::new(0),
+                acceptor_tcp_stream_dropped: AtomicU64::new(0),
+                acceptor_tcp_stream_replaced: AtomicU64::new(0),
+                acceptor_tcp_packet_received: AtomicU64::new(0),
+                acceptor_tcp_packet_dropped: AtomicU64::new(0),
+                acceptor_tcp_stream_enqueued: AtomicU64::new(0),
+                acceptor_tcp_io_error: AtomicU64::new(0),
+                acceptor_udp_started: AtomicU64::new(0),
+                acceptor_udp_datagram_received: AtomicU64::new(0),
+                acceptor_udp_packet_received: AtomicU64::new(0),
+                acceptor_udp_packet_dropped: AtomicU64::new(0),
+                acceptor_udp_stream_enqueued: AtomicU64::new(0),
+                acceptor_udp_io_error: AtomicU64::new(0),
+                acceptor_stream_pruned: AtomicU64::new(0),
+                acceptor_stream_dequeued: AtomicU64::new(0),
+                stream_write_flushed: AtomicU64::new(0),
+                stream_write_fin_flushed: AtomicU64::new(0),
+                stream_write_blocked: AtomicU64::new(0),
+                stream_write_errored: AtomicU64::new(0),
+                stream_write_shutdown: AtomicU64::new(0),
+                stream_write_socket_flushed: AtomicU64::new(0),
+                stream_write_socket_blocked: AtomicU64::new(0),
+                stream_write_socket_errored: AtomicU64::new(0),
+                stream_read_flushed: AtomicU64::new(0),
+                stream_read_fin_flushed: AtomicU64::new(0),
+                stream_read_blocked: AtomicU64::new(0),
+                stream_read_errored: AtomicU64::new(0),
+                stream_read_shutdown: AtomicU64::new(0),
+                stream_read_socket_flushed: AtomicU64::new(0),
+                stream_read_socket_blocked: AtomicU64::new(0),
+                stream_read_socket_errored: AtomicU64::new(0),
+                connection_closed: AtomicU64::new(0),
+                endpoint_initialized: AtomicU64::new(0),
+                path_secret_map_initialized: AtomicU64::new(0),
+                path_secret_map_uninitialized: AtomicU64::new(0),
+                path_secret_map_background_handshake_requested: AtomicU64::new(0),
+                path_secret_map_entry_inserted: AtomicU64::new(0),
+                path_secret_map_entry_ready: AtomicU64::new(0),
+                path_secret_map_entry_replaced: AtomicU64::new(0),
+                path_secret_map_id_entry_evicted: AtomicU64::new(0),
+                path_secret_map_address_entry_evicted: AtomicU64::new(0),
+                unknown_path_secret_packet_sent: AtomicU64::new(0),
+                unknown_path_secret_packet_received: AtomicU64::new(0),
+                unknown_path_secret_packet_accepted: AtomicU64::new(0),
+                unknown_path_secret_packet_rejected: AtomicU64::new(0),
+                unknown_path_secret_packet_dropped: AtomicU64::new(0),
+                key_accepted: AtomicU64::new(0),
+                replay_definitely_detected: AtomicU64::new(0),
+                replay_potentially_detected: AtomicU64::new(0),
+                replay_detected_packet_sent: AtomicU64::new(0),
+                replay_detected_packet_received: AtomicU64::new(0),
+                replay_detected_packet_accepted: AtomicU64::new(0),
+                replay_detected_packet_rejected: AtomicU64::new(0),
+                replay_detected_packet_dropped: AtomicU64::new(0),
+                stale_key_packet_sent: AtomicU64::new(0),
+                stale_key_packet_received: AtomicU64::new(0),
+                stale_key_packet_accepted: AtomicU64::new(0),
+                stale_key_packet_rejected: AtomicU64::new(0),
+                stale_key_packet_dropped: AtomicU64::new(0),
+                path_secret_map_address_cache_accessed: AtomicU64::new(0),
+                path_secret_map_address_cache_accessed_hit: AtomicU64::new(0),
+                path_secret_map_id_cache_accessed: AtomicU64::new(0),
+                path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
+                path_secret_map_cleaner_cycled: AtomicU64::new(0),
             }
         }
     }
@@ -5791,13 +8197,13 @@ pub mod testing {
             let out = format!("{meta:?} {event:?}");
             self.output.lock().unwrap().push(out);
         }
-        fn on_application_write(
+        fn on_stream_write_flushed(
             &self,
             _context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationWrite,
+            event: &api::StreamWriteFlushed,
         ) {
-            self.application_write.fetch_add(1, Ordering::Relaxed);
+            self.stream_write_flushed.fetch_add(1, Ordering::Relaxed);
             if self.location.is_some() {
                 let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
                 let event = crate::event::snapshot::Fmt::to_snapshot(event);
@@ -5805,13 +8211,230 @@ pub mod testing {
                 self.output.lock().unwrap().push(out);
             }
         }
-        fn on_application_read(
+        fn on_stream_write_fin_flushed(
             &self,
             _context: &Self::ConnectionContext,
             meta: &api::ConnectionMeta,
-            event: &api::ApplicationRead,
+            event: &api::StreamWriteFinFlushed,
         ) {
-            self.application_read.fetch_add(1, Ordering::Relaxed);
+            self.stream_write_fin_flushed
+                .fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_blocked(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteBlocked,
+        ) {
+            self.stream_write_blocked.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_errored(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteErrored,
+        ) {
+            self.stream_write_errored.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_shutdown(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteShutdown,
+        ) {
+            self.stream_write_shutdown.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_socket_flushed(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketFlushed,
+        ) {
+            self.stream_write_socket_flushed
+                .fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_socket_blocked(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketBlocked,
+        ) {
+            self.stream_write_socket_blocked
+                .fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_socket_errored(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamWriteSocketErrored,
+        ) {
+            self.stream_write_socket_errored
+                .fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_flushed(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFlushed,
+        ) {
+            self.stream_read_flushed.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_fin_flushed(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadFinFlushed,
+        ) {
+            self.stream_read_fin_flushed.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_blocked(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadBlocked,
+        ) {
+            self.stream_read_blocked.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_errored(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadErrored,
+        ) {
+            self.stream_read_errored.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_shutdown(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadShutdown,
+        ) {
+            self.stream_read_shutdown.fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_socket_flushed(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketFlushed,
+        ) {
+            self.stream_read_socket_flushed
+                .fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_socket_blocked(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketBlocked,
+        ) {
+            self.stream_read_socket_blocked
+                .fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_socket_errored(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::StreamReadSocketErrored,
+        ) {
+            self.stream_read_socket_errored
+                .fetch_add(1, Ordering::Relaxed);
+            if self.location.is_some() {
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_connection_closed(
+            &self,
+            _context: &Self::ConnectionContext,
+            meta: &api::ConnectionMeta,
+            event: &api::ConnectionClosed,
+        ) {
+            self.connection_closed.fetch_add(1, Ordering::Relaxed);
             if self.location.is_some() {
                 let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
                 let event = crate::event::snapshot::Fmt::to_snapshot(event);
@@ -5896,6 +8519,30 @@ pub mod testing {
             event: &api::PathSecretMapEntryReplaced,
         ) {
             self.path_secret_map_entry_replaced
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_id_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdEntryEvicted,
+        ) {
+            self.path_secret_map_id_entry_evicted
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressEntryEvicted,
+        ) {
+            self.path_secret_map_address_entry_evicted
                 .fetch_add(1, Ordering::Relaxed);
             let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
             let event = crate::event::snapshot::Fmt::to_snapshot(event);
@@ -6112,56 +8759,138 @@ pub mod testing {
             let out = format!("{meta:?} {event:?}");
             self.output.lock().unwrap().push(out);
         }
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessed,
+        ) {
+            self.path_secret_map_address_cache_accessed
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressCacheAccessedHit,
+        ) {
+            self.path_secret_map_address_cache_accessed_hit
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessed,
+        ) {
+            self.path_secret_map_id_cache_accessed
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdCacheAccessedHit,
+        ) {
+            self.path_secret_map_id_cache_accessed_hit
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_cleaner_cycled(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapCleanerCycled,
+        ) {
+            self.path_secret_map_cleaner_cycled
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
     }
     #[derive(Debug)]
     pub struct Publisher {
         location: Option<Location>,
         output: Mutex<Vec<String>>,
-        pub acceptor_tcp_started: AtomicU32,
-        pub acceptor_tcp_loop_iteration_completed: AtomicU32,
-        pub acceptor_tcp_fresh_enqueued: AtomicU32,
-        pub acceptor_tcp_fresh_batch_completed: AtomicU32,
-        pub acceptor_tcp_stream_dropped: AtomicU32,
-        pub acceptor_tcp_stream_replaced: AtomicU32,
-        pub acceptor_tcp_packet_received: AtomicU32,
-        pub acceptor_tcp_packet_dropped: AtomicU32,
-        pub acceptor_tcp_stream_enqueued: AtomicU32,
-        pub acceptor_tcp_io_error: AtomicU32,
-        pub acceptor_udp_started: AtomicU32,
-        pub acceptor_udp_datagram_received: AtomicU32,
-        pub acceptor_udp_packet_received: AtomicU32,
-        pub acceptor_udp_packet_dropped: AtomicU32,
-        pub acceptor_udp_stream_enqueued: AtomicU32,
-        pub acceptor_udp_io_error: AtomicU32,
-        pub acceptor_stream_pruned: AtomicU32,
-        pub acceptor_stream_dequeued: AtomicU32,
-        pub application_write: AtomicU32,
-        pub application_read: AtomicU32,
-        pub endpoint_initialized: AtomicU32,
-        pub path_secret_map_initialized: AtomicU32,
-        pub path_secret_map_uninitialized: AtomicU32,
-        pub path_secret_map_background_handshake_requested: AtomicU32,
-        pub path_secret_map_entry_inserted: AtomicU32,
-        pub path_secret_map_entry_ready: AtomicU32,
-        pub path_secret_map_entry_replaced: AtomicU32,
-        pub unknown_path_secret_packet_sent: AtomicU32,
-        pub unknown_path_secret_packet_received: AtomicU32,
-        pub unknown_path_secret_packet_accepted: AtomicU32,
-        pub unknown_path_secret_packet_rejected: AtomicU32,
-        pub unknown_path_secret_packet_dropped: AtomicU32,
-        pub key_accepted: AtomicU32,
-        pub replay_definitely_detected: AtomicU32,
-        pub replay_potentially_detected: AtomicU32,
-        pub replay_detected_packet_sent: AtomicU32,
-        pub replay_detected_packet_received: AtomicU32,
-        pub replay_detected_packet_accepted: AtomicU32,
-        pub replay_detected_packet_rejected: AtomicU32,
-        pub replay_detected_packet_dropped: AtomicU32,
-        pub stale_key_packet_sent: AtomicU32,
-        pub stale_key_packet_received: AtomicU32,
-        pub stale_key_packet_accepted: AtomicU32,
-        pub stale_key_packet_rejected: AtomicU32,
-        pub stale_key_packet_dropped: AtomicU32,
+        pub acceptor_tcp_started: AtomicU64,
+        pub acceptor_tcp_loop_iteration_completed: AtomicU64,
+        pub acceptor_tcp_fresh_enqueued: AtomicU64,
+        pub acceptor_tcp_fresh_batch_completed: AtomicU64,
+        pub acceptor_tcp_stream_dropped: AtomicU64,
+        pub acceptor_tcp_stream_replaced: AtomicU64,
+        pub acceptor_tcp_packet_received: AtomicU64,
+        pub acceptor_tcp_packet_dropped: AtomicU64,
+        pub acceptor_tcp_stream_enqueued: AtomicU64,
+        pub acceptor_tcp_io_error: AtomicU64,
+        pub acceptor_udp_started: AtomicU64,
+        pub acceptor_udp_datagram_received: AtomicU64,
+        pub acceptor_udp_packet_received: AtomicU64,
+        pub acceptor_udp_packet_dropped: AtomicU64,
+        pub acceptor_udp_stream_enqueued: AtomicU64,
+        pub acceptor_udp_io_error: AtomicU64,
+        pub acceptor_stream_pruned: AtomicU64,
+        pub acceptor_stream_dequeued: AtomicU64,
+        pub stream_write_flushed: AtomicU64,
+        pub stream_write_fin_flushed: AtomicU64,
+        pub stream_write_blocked: AtomicU64,
+        pub stream_write_errored: AtomicU64,
+        pub stream_write_shutdown: AtomicU64,
+        pub stream_write_socket_flushed: AtomicU64,
+        pub stream_write_socket_blocked: AtomicU64,
+        pub stream_write_socket_errored: AtomicU64,
+        pub stream_read_flushed: AtomicU64,
+        pub stream_read_fin_flushed: AtomicU64,
+        pub stream_read_blocked: AtomicU64,
+        pub stream_read_errored: AtomicU64,
+        pub stream_read_shutdown: AtomicU64,
+        pub stream_read_socket_flushed: AtomicU64,
+        pub stream_read_socket_blocked: AtomicU64,
+        pub stream_read_socket_errored: AtomicU64,
+        pub connection_closed: AtomicU64,
+        pub endpoint_initialized: AtomicU64,
+        pub path_secret_map_initialized: AtomicU64,
+        pub path_secret_map_uninitialized: AtomicU64,
+        pub path_secret_map_background_handshake_requested: AtomicU64,
+        pub path_secret_map_entry_inserted: AtomicU64,
+        pub path_secret_map_entry_ready: AtomicU64,
+        pub path_secret_map_entry_replaced: AtomicU64,
+        pub path_secret_map_id_entry_evicted: AtomicU64,
+        pub path_secret_map_address_entry_evicted: AtomicU64,
+        pub unknown_path_secret_packet_sent: AtomicU64,
+        pub unknown_path_secret_packet_received: AtomicU64,
+        pub unknown_path_secret_packet_accepted: AtomicU64,
+        pub unknown_path_secret_packet_rejected: AtomicU64,
+        pub unknown_path_secret_packet_dropped: AtomicU64,
+        pub key_accepted: AtomicU64,
+        pub replay_definitely_detected: AtomicU64,
+        pub replay_potentially_detected: AtomicU64,
+        pub replay_detected_packet_sent: AtomicU64,
+        pub replay_detected_packet_received: AtomicU64,
+        pub replay_detected_packet_accepted: AtomicU64,
+        pub replay_detected_packet_rejected: AtomicU64,
+        pub replay_detected_packet_dropped: AtomicU64,
+        pub stale_key_packet_sent: AtomicU64,
+        pub stale_key_packet_received: AtomicU64,
+        pub stale_key_packet_accepted: AtomicU64,
+        pub stale_key_packet_rejected: AtomicU64,
+        pub stale_key_packet_dropped: AtomicU64,
+        pub path_secret_map_address_cache_accessed: AtomicU64,
+        pub path_secret_map_address_cache_accessed_hit: AtomicU64,
+        pub path_secret_map_id_cache_accessed: AtomicU64,
+        pub path_secret_map_id_cache_accessed_hit: AtomicU64,
+        pub path_secret_map_cleaner_cycled: AtomicU64,
     }
     impl Publisher {
         #[doc = r" Creates a publisher with snapshot assertions enabled"]
@@ -6183,51 +8912,73 @@ pub mod testing {
             Self {
                 location: None,
                 output: Default::default(),
-                acceptor_tcp_started: AtomicU32::new(0),
-                acceptor_tcp_loop_iteration_completed: AtomicU32::new(0),
-                acceptor_tcp_fresh_enqueued: AtomicU32::new(0),
-                acceptor_tcp_fresh_batch_completed: AtomicU32::new(0),
-                acceptor_tcp_stream_dropped: AtomicU32::new(0),
-                acceptor_tcp_stream_replaced: AtomicU32::new(0),
-                acceptor_tcp_packet_received: AtomicU32::new(0),
-                acceptor_tcp_packet_dropped: AtomicU32::new(0),
-                acceptor_tcp_stream_enqueued: AtomicU32::new(0),
-                acceptor_tcp_io_error: AtomicU32::new(0),
-                acceptor_udp_started: AtomicU32::new(0),
-                acceptor_udp_datagram_received: AtomicU32::new(0),
-                acceptor_udp_packet_received: AtomicU32::new(0),
-                acceptor_udp_packet_dropped: AtomicU32::new(0),
-                acceptor_udp_stream_enqueued: AtomicU32::new(0),
-                acceptor_udp_io_error: AtomicU32::new(0),
-                acceptor_stream_pruned: AtomicU32::new(0),
-                acceptor_stream_dequeued: AtomicU32::new(0),
-                application_write: AtomicU32::new(0),
-                application_read: AtomicU32::new(0),
-                endpoint_initialized: AtomicU32::new(0),
-                path_secret_map_initialized: AtomicU32::new(0),
-                path_secret_map_uninitialized: AtomicU32::new(0),
-                path_secret_map_background_handshake_requested: AtomicU32::new(0),
-                path_secret_map_entry_inserted: AtomicU32::new(0),
-                path_secret_map_entry_ready: AtomicU32::new(0),
-                path_secret_map_entry_replaced: AtomicU32::new(0),
-                unknown_path_secret_packet_sent: AtomicU32::new(0),
-                unknown_path_secret_packet_received: AtomicU32::new(0),
-                unknown_path_secret_packet_accepted: AtomicU32::new(0),
-                unknown_path_secret_packet_rejected: AtomicU32::new(0),
-                unknown_path_secret_packet_dropped: AtomicU32::new(0),
-                key_accepted: AtomicU32::new(0),
-                replay_definitely_detected: AtomicU32::new(0),
-                replay_potentially_detected: AtomicU32::new(0),
-                replay_detected_packet_sent: AtomicU32::new(0),
-                replay_detected_packet_received: AtomicU32::new(0),
-                replay_detected_packet_accepted: AtomicU32::new(0),
-                replay_detected_packet_rejected: AtomicU32::new(0),
-                replay_detected_packet_dropped: AtomicU32::new(0),
-                stale_key_packet_sent: AtomicU32::new(0),
-                stale_key_packet_received: AtomicU32::new(0),
-                stale_key_packet_accepted: AtomicU32::new(0),
-                stale_key_packet_rejected: AtomicU32::new(0),
-                stale_key_packet_dropped: AtomicU32::new(0),
+                acceptor_tcp_started: AtomicU64::new(0),
+                acceptor_tcp_loop_iteration_completed: AtomicU64::new(0),
+                acceptor_tcp_fresh_enqueued: AtomicU64::new(0),
+                acceptor_tcp_fresh_batch_completed: AtomicU64::new(0),
+                acceptor_tcp_stream_dropped: AtomicU64::new(0),
+                acceptor_tcp_stream_replaced: AtomicU64::new(0),
+                acceptor_tcp_packet_received: AtomicU64::new(0),
+                acceptor_tcp_packet_dropped: AtomicU64::new(0),
+                acceptor_tcp_stream_enqueued: AtomicU64::new(0),
+                acceptor_tcp_io_error: AtomicU64::new(0),
+                acceptor_udp_started: AtomicU64::new(0),
+                acceptor_udp_datagram_received: AtomicU64::new(0),
+                acceptor_udp_packet_received: AtomicU64::new(0),
+                acceptor_udp_packet_dropped: AtomicU64::new(0),
+                acceptor_udp_stream_enqueued: AtomicU64::new(0),
+                acceptor_udp_io_error: AtomicU64::new(0),
+                acceptor_stream_pruned: AtomicU64::new(0),
+                acceptor_stream_dequeued: AtomicU64::new(0),
+                stream_write_flushed: AtomicU64::new(0),
+                stream_write_fin_flushed: AtomicU64::new(0),
+                stream_write_blocked: AtomicU64::new(0),
+                stream_write_errored: AtomicU64::new(0),
+                stream_write_shutdown: AtomicU64::new(0),
+                stream_write_socket_flushed: AtomicU64::new(0),
+                stream_write_socket_blocked: AtomicU64::new(0),
+                stream_write_socket_errored: AtomicU64::new(0),
+                stream_read_flushed: AtomicU64::new(0),
+                stream_read_fin_flushed: AtomicU64::new(0),
+                stream_read_blocked: AtomicU64::new(0),
+                stream_read_errored: AtomicU64::new(0),
+                stream_read_shutdown: AtomicU64::new(0),
+                stream_read_socket_flushed: AtomicU64::new(0),
+                stream_read_socket_blocked: AtomicU64::new(0),
+                stream_read_socket_errored: AtomicU64::new(0),
+                connection_closed: AtomicU64::new(0),
+                endpoint_initialized: AtomicU64::new(0),
+                path_secret_map_initialized: AtomicU64::new(0),
+                path_secret_map_uninitialized: AtomicU64::new(0),
+                path_secret_map_background_handshake_requested: AtomicU64::new(0),
+                path_secret_map_entry_inserted: AtomicU64::new(0),
+                path_secret_map_entry_ready: AtomicU64::new(0),
+                path_secret_map_entry_replaced: AtomicU64::new(0),
+                path_secret_map_id_entry_evicted: AtomicU64::new(0),
+                path_secret_map_address_entry_evicted: AtomicU64::new(0),
+                unknown_path_secret_packet_sent: AtomicU64::new(0),
+                unknown_path_secret_packet_received: AtomicU64::new(0),
+                unknown_path_secret_packet_accepted: AtomicU64::new(0),
+                unknown_path_secret_packet_rejected: AtomicU64::new(0),
+                unknown_path_secret_packet_dropped: AtomicU64::new(0),
+                key_accepted: AtomicU64::new(0),
+                replay_definitely_detected: AtomicU64::new(0),
+                replay_potentially_detected: AtomicU64::new(0),
+                replay_detected_packet_sent: AtomicU64::new(0),
+                replay_detected_packet_received: AtomicU64::new(0),
+                replay_detected_packet_accepted: AtomicU64::new(0),
+                replay_detected_packet_rejected: AtomicU64::new(0),
+                replay_detected_packet_dropped: AtomicU64::new(0),
+                stale_key_packet_sent: AtomicU64::new(0),
+                stale_key_packet_received: AtomicU64::new(0),
+                stale_key_packet_accepted: AtomicU64::new(0),
+                stale_key_packet_rejected: AtomicU64::new(0),
+                stale_key_packet_dropped: AtomicU64::new(0),
+                path_secret_map_address_cache_accessed: AtomicU64::new(0),
+                path_secret_map_address_cache_accessed_hit: AtomicU64::new(0),
+                path_secret_map_id_cache_accessed: AtomicU64::new(0),
+                path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
+                path_secret_map_cleaner_cycled: AtomicU64::new(0),
             }
         }
     }
@@ -6435,6 +9186,25 @@ pub mod testing {
             let out = format!("{event:?}");
             self.output.lock().unwrap().push(out);
         }
+        fn on_path_secret_map_id_entry_evicted(&self, event: builder::PathSecretMapIdEntryEvicted) {
+            self.path_secret_map_id_entry_evicted
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_address_entry_evicted(
+            &self,
+            event: builder::PathSecretMapAddressEntryEvicted,
+        ) {
+            self.path_secret_map_address_entry_evicted
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
         fn on_unknown_path_secret_packet_sent(&self, event: builder::UnknownPathSecretPacketSent) {
             self.unknown_path_secret_packet_sent
                 .fetch_add(1, Ordering::Relaxed);
@@ -6589,13 +9359,65 @@ pub mod testing {
             let out = format!("{event:?}");
             self.output.lock().unwrap().push(out);
         }
+        fn on_path_secret_map_address_cache_accessed(
+            &self,
+            event: builder::PathSecretMapAddressCacheAccessed,
+        ) {
+            self.path_secret_map_address_cache_accessed
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_address_cache_accessed_hit(
+            &self,
+            event: builder::PathSecretMapAddressCacheAccessedHit,
+        ) {
+            self.path_secret_map_address_cache_accessed_hit
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_id_cache_accessed(
+            &self,
+            event: builder::PathSecretMapIdCacheAccessed,
+        ) {
+            self.path_secret_map_id_cache_accessed
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_id_cache_accessed_hit(
+            &self,
+            event: builder::PathSecretMapIdCacheAccessedHit,
+        ) {
+            self.path_secret_map_id_cache_accessed_hit
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_cleaner_cycled(&self, event: builder::PathSecretMapCleanerCycled) {
+            self.path_secret_map_cleaner_cycled
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
         fn quic_version(&self) -> Option<u32> {
             Some(1)
         }
     }
     impl super::ConnectionPublisher for Publisher {
-        fn on_application_write(&self, event: builder::ApplicationWrite) {
-            self.application_write.fetch_add(1, Ordering::Relaxed);
+        fn on_stream_write_flushed(&self, event: builder::StreamWriteFlushed) {
+            self.stream_write_flushed.fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             if self.location.is_some() {
                 let event = crate::event::snapshot::Fmt::to_snapshot(&event);
@@ -6603,8 +9425,150 @@ pub mod testing {
                 self.output.lock().unwrap().push(out);
             }
         }
-        fn on_application_read(&self, event: builder::ApplicationRead) {
-            self.application_read.fetch_add(1, Ordering::Relaxed);
+        fn on_stream_write_fin_flushed(&self, event: builder::StreamWriteFinFlushed) {
+            self.stream_write_fin_flushed
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_blocked(&self, event: builder::StreamWriteBlocked) {
+            self.stream_write_blocked.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_errored(&self, event: builder::StreamWriteErrored) {
+            self.stream_write_errored.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_shutdown(&self, event: builder::StreamWriteShutdown) {
+            self.stream_write_shutdown.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_socket_flushed(&self, event: builder::StreamWriteSocketFlushed) {
+            self.stream_write_socket_flushed
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_socket_blocked(&self, event: builder::StreamWriteSocketBlocked) {
+            self.stream_write_socket_blocked
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_write_socket_errored(&self, event: builder::StreamWriteSocketErrored) {
+            self.stream_write_socket_errored
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_flushed(&self, event: builder::StreamReadFlushed) {
+            self.stream_read_flushed.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_fin_flushed(&self, event: builder::StreamReadFinFlushed) {
+            self.stream_read_fin_flushed.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_blocked(&self, event: builder::StreamReadBlocked) {
+            self.stream_read_blocked.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_errored(&self, event: builder::StreamReadErrored) {
+            self.stream_read_errored.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_shutdown(&self, event: builder::StreamReadShutdown) {
+            self.stream_read_shutdown.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_socket_flushed(&self, event: builder::StreamReadSocketFlushed) {
+            self.stream_read_socket_flushed
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_socket_blocked(&self, event: builder::StreamReadSocketBlocked) {
+            self.stream_read_socket_blocked
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_stream_read_socket_errored(&self, event: builder::StreamReadSocketErrored) {
+            self.stream_read_socket_errored
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            if self.location.is_some() {
+                let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+                let out = format!("{event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+        }
+        fn on_connection_closed(&self, event: builder::ConnectionClosed) {
+            self.connection_closed.fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             if self.location.is_some() {
                 let event = crate::event::snapshot::Fmt::to_snapshot(&event);

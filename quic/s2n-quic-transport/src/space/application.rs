@@ -57,8 +57,6 @@ pub struct ApplicationSpace<Config: endpoint::Config> {
     /// TODO: Spin me
     pub spin_bit: SpinBit,
     pub crypto_stream: CryptoStream,
-    /// The crypto suite for application data
-    /// TODO: What about ZeroRtt?
     //= https://www.rfc-editor.org/rfc/rfc9001#section-6.3
     //# For this reason, endpoints MUST be able to retain two sets of packet
     //# protection keys for receiving packets: the current and the next.
@@ -66,6 +64,8 @@ pub struct ApplicationSpace<Config: endpoint::Config> {
     //= https://www.rfc-editor.org/rfc/rfc9001#section-6.1
     //# An endpoint MUST NOT initiate a key update prior to having confirmed
     //# the handshake (Section 4.1.2).
+    /// The crypto suite for application data
+    /// TODO: What about ZeroRtt?
     key_set: KeySet<<<Config::TLSEndpoint as tls::Endpoint>::Session as CryptoSuite>::OneRttKey>,
     header_key: <<Config::TLSEndpoint as tls::Endpoint>::Session as CryptoSuite>::OneRttHeaderKey,
 
@@ -719,7 +719,7 @@ struct RecoveryContext<'a, Config: endpoint::Config> {
     dc_manager: &'a mut dc::Manager<Config>,
 }
 
-impl<'a, Config: endpoint::Config> recovery::Context<Config> for RecoveryContext<'a, Config> {
+impl<Config: endpoint::Config> recovery::Context<Config> for RecoveryContext<'_, Config> {
     const ENDPOINT_TYPE: endpoint::Type = Config::ENDPOINT_TYPE;
 
     fn is_handshake_confirmed(&self) -> bool {
@@ -886,12 +886,25 @@ impl<Config: endpoint::Config> PacketSpace<Config> for ApplicationSpace<Config> 
         )
     }
 
-    fn handle_connection_close_frame(
+    fn handle_connection_close_frame<Pub: event::ConnectionPublisher>(
         &mut self,
-        _frame: ConnectionClose,
-        _timestamp: Timestamp,
-        _path: &mut Path<Config>,
+        frame: ConnectionClose,
+        path_id: path::Id,
+        path: &mut Path<Config>,
+        packet_number: PacketNumber,
+        publisher: &mut Pub,
     ) -> Result<(), transport::Error> {
+        publisher.on_connection_close_frame_received(
+            event::builder::ConnectionCloseFrameReceived {
+                packet_header: event::builder::PacketHeader::new(
+                    packet_number,
+                    publisher.quic_version(),
+                ),
+                path: path_event!(path, path_id),
+                frame: frame.into_event(),
+            },
+        );
+
         Ok(())
     }
 
