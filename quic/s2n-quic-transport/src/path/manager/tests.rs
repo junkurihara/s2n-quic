@@ -14,7 +14,7 @@ use crate::{
 use core::time::Duration;
 use s2n_quic_core::{
     connection::limits::ANTI_AMPLIFICATION_MULTIPLIER,
-    event::testing::Publisher,
+    event::{builder::MigrationDenyReason, testing::Publisher},
     inet::{DatagramInfo, ExplicitCongestionNotification, SocketAddress},
     path::{migration, RemoteAddress},
     random::{self, Generator},
@@ -765,7 +765,7 @@ fn test_adding_new_path() {
 // - call on_datagram_received with new remote address bit handshake_confirmed false
 //
 // Expectation:
-// - asset on_datagram_received errors
+// - assert on_datagram_received does not error
 // - assert we have one paths
 fn do_not_add_new_path_if_handshake_not_confirmed() {
     // Setup:
@@ -811,7 +811,7 @@ fn do_not_add_new_path_if_handshake_not_confirmed() {
     );
 
     // Expectation:
-    assert!(on_datagram_result.is_err());
+    assert!(on_datagram_result.is_ok());
     assert!(manager.path(&new_addr).is_none());
     assert_eq!(manager.paths.len(), 1);
 }
@@ -1043,7 +1043,9 @@ fn active_connection_migration_disabled() {
     // The active migration is rejected
     assert!(matches!(
         res,
-        Err(DatagramDropReason::RejectedConnectionMigration)
+        Err(DatagramDropReason::RejectedConnectionMigration {
+            reason: MigrationDenyReason::ConnectionMigrationDisabled { .. }
+        })
     ));
     assert_eq!(1, manager.paths.len());
 

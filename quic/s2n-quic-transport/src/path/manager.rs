@@ -249,30 +249,48 @@ impl<Config: endpoint::Config> Manager<Config> {
     ) -> Result<(Id, AmplificationOutcome), DatagramDropReason> {
         let valid_initial_received = self.valid_initial_received();
 
-        if let Some((id, path)) = self.path_mut(path_handle) {
-            let source_cid_changed = datagram
-                .source_connection_id
-                .is_some_and(|scid| scid != path.peer_connection_id && valid_initial_received);
+        let matched_path = if handshake_confirmed {
+            self.path_mut(path_handle)
+        } else {
+            //= https://www.rfc-editor.org/rfc/rfc9000#section-9
+            //# The design of QUIC relies on endpoints retaining a stable address
+            //# for the duration of the handshake.  An endpoint MUST NOT initiate
+            //# connection migration before the handshake is confirmed, as defined
+            //# in section 4.1.2 of [QUIC-TLS].
 
-            if source_cid_changed {
-                //= https://www.rfc-editor.org/rfc/rfc9000#section-7.2
-                //# Once a client has received a valid Initial packet from the server, it MUST
-                //# discard any subsequent packet it receives on that connection with a
-                //# different Source Connection ID.
+            // NOTE: while we must not _initiate_ a migration before the handshake is done,
+            // it doesn't mean we can't handle the packet. So instead we pick the default path.
+            let path_id = self.active_path_id();
+            let path = self.active_path_mut();
 
-                //= https://www.rfc-editor.org/rfc/rfc9000#section-7.2
-                //# Any further changes to the Destination Connection ID are only
-                //# permitted if the values are taken from NEW_CONNECTION_ID frames; if
-                //# subsequent Initial packets include a different Source Connection ID,
-                //# they MUST be discarded.
+            // check if the remote addr changed
+            if !path
+                .handle
+                .remote_address()
+                .unmapped_eq(&path_handle.remote_address())
+            {
+                publisher.on_handshake_remote_address_change_observed(
+                    event::builder::HandshakeRemoteAddressChangeObserved {
+                        local_addr: path.handle.local_address().into_event(),
+                        initial_remote_addr: path.handle.remote_address().into_event(),
+                        remote_addr: path_handle.remote_address().into_event(),
+                    },
+                );
 
-                return Err(DatagramDropReason::InvalidSourceConnectionId);
+                //= https://www.rfc-editor.org/rfc/rfc9000#section-9
+                //# If a client receives packets from an unknown server address,
+                //# the client MUST discard these packets.
+                if Config::ENDPOINT_TYPE.is_client() {
+                    return Err(DatagramDropReason::UnknownServerAddress);
+                }
             }
 
-            // update the address if it was resolved
-            path.handle.maybe_update(path_handle);
+            Some((path_id, path))
+        };
 
-            let amplification_outcome = path.on_bytes_received(datagram.payload_len);
+        if let Some((id, path)) = matched_path {
+            let amplification_outcome =
+                path.on_datagram_received(path_handle, datagram, valid_initial_received)?;
             return Ok((id, amplification_outcome));
         }
 
@@ -281,15 +299,6 @@ impl<Config: endpoint::Config> Manager<Config> {
         //# the client MUST discard these packets.
         if Config::ENDPOINT_TYPE.is_client() {
             return Err(DatagramDropReason::UnknownServerAddress);
-        }
-
-        //= https://www.rfc-editor.org/rfc/rfc9000#section-9
-        //# The design of QUIC relies on endpoints retaining a stable address
-        //# for the duration of the handshake.  An endpoint MUST NOT initiate
-        //# connection migration before the handshake is confirmed, as defined
-        //# in section 4.1.2 of [QUIC-TLS].
-        if !handshake_confirmed {
-            return Err(DatagramDropReason::ConnectionMigrationDuringHandshake);
         }
 
         //= https://www.rfc-editor.org/rfc/rfc9000#section-9
@@ -336,10 +345,13 @@ impl<Config: endpoint::Config> Manager<Config> {
             self.active_path().local_connection_id != datagram.destination_connection_id;
 
         if active_migration {
-            ensure!(
-                limits.active_migration_enabled(),
-                Err(DatagramDropReason::RejectedConnectionMigration)
-            )
+            ensure!(limits.active_migration_enabled(), {
+                let reason = migration::DenyReason::ConnectionMigrationDisabled;
+                publisher.on_connection_migration_denied(reason.into_event());
+                Err(DatagramDropReason::RejectedConnectionMigration {
+                    reason: reason.into_event().reason,
+                })
+            })
         }
 
         // TODO set alpn if available
@@ -367,7 +379,9 @@ impl<Config: endpoint::Config> Manager<Config> {
             }
             migration::Outcome::Deny(reason) => {
                 publisher.on_connection_migration_denied(reason.into_event());
-                return Err(DatagramDropReason::RejectedConnectionMigration);
+                return Err(DatagramDropReason::RejectedConnectionMigration {
+                    reason: reason.into_event().reason,
+                });
             }
             _ => {
                 unimplemented!("unimplemented migration outcome");

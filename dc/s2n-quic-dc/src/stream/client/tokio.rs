@@ -9,10 +9,9 @@ use crate::{
         endpoint,
         environment::tokio::{self as env, Environment},
         socket::Protocol,
-        TransportFeatures,
     },
 };
-use std::{io, net::SocketAddr};
+use std::{io, net::SocketAddr, time::Duration};
 use tokio::net::TcpStream;
 
 /// Connects using the UDP transport layer
@@ -30,15 +29,12 @@ where
     // ensure we have a secret for the peer
     let peer = handshake.await?;
 
-    let (crypto, parameters) = peer.pair(&TransportFeatures::UDP);
-
     let stream = endpoint::open_stream(
         env,
-        peer.map(),
-        crypto,
-        parameters,
+        peer,
         env::UdpUnbound(acceptor_addr.into()),
         subscriber,
+        None,
     )?;
 
     // build the stream inside the application context
@@ -58,24 +54,21 @@ pub async fn connect_tcp<H, Sub>(
     acceptor_addr: SocketAddr,
     env: &Environment<Sub>,
     subscriber: Sub,
+    linger: Option<Duration>,
 ) -> io::Result<Stream<Sub>>
 where
     H: core::future::Future<Output = io::Result<secret::map::Peer>>,
     Sub: event::Subscriber,
 {
     // Race TCP handshake with the TLS handshake
-    let handshake = async {
-        let peer = handshake.await?;
-        let (crypto, parameters) = peer.pair(&TransportFeatures::TCP);
-        Ok((peer, crypto, parameters))
-    };
-    // poll the crypto first so the server can read the first packet on accept in the happy path
-    let ((peer, crypto, parameters), socket) =
-        tokio::try_join!(handshake, TcpStream::connect(acceptor_addr))?;
+    let (socket, peer) = tokio::try_join!(TcpStream::connect(acceptor_addr), handshake,)?;
 
     // Make sure TCP_NODELAY is set
     let _ = socket.set_nodelay(true);
-    let _ = socket.set_linger(Some(core::time::Duration::ZERO));
+
+    if linger.is_some() {
+        let _ = socket.set_linger(linger);
+    }
 
     // if the acceptor_ip isn't known, then ask the socket to resolve it for us
     let peer_addr = if acceptor_addr.ip().is_unspecified() {
@@ -88,15 +81,14 @@ where
 
     let stream = endpoint::open_stream(
         env,
-        peer.map(),
-        crypto,
-        parameters,
+        peer,
         env::TcpRegistered {
             socket,
             peer_addr,
             local_port,
         },
         subscriber,
+        None,
     )?;
 
     // build the stream inside the application context
@@ -126,20 +118,16 @@ where
 {
     let local_port = socket.local_addr()?.port();
     let peer_addr = socket.peer_addr()?.into();
-
-    let (crypto, parameters) = peer.pair(&TransportFeatures::TCP);
-
     let stream = endpoint::open_stream(
         env,
-        peer.map(),
-        crypto,
-        parameters,
+        peer,
         env::TcpRegistered {
             socket,
             peer_addr,
             local_port,
         },
         subscriber,
+        None,
     )?;
 
     // build the stream inside the application context
