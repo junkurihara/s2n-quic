@@ -5,7 +5,7 @@ use crate::{
     clock::Timer,
     event::{self, ConnectionPublisher as _},
     msg,
-    stream::{recv, runtime, shared::ArcShared, socket},
+    stream::{recv, runtime, shared::ArcShared, socket, Actor},
 };
 use core::{
     fmt,
@@ -122,7 +122,7 @@ where
     #[inline]
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
         self.0.shared.common.ensure_open()?;
-        Ok(self.0.shared.read_remote_addr().into())
+        Ok(self.0.shared.remote_addr().into())
     }
 
     #[inline]
@@ -265,6 +265,7 @@ where
 
             let recv = reader.poll_fill_recv_buffer(
                 cx,
+                Actor::Application,
                 self.sockets.read_application(),
                 &self.shared.clock,
                 &self.shared.subscriber,

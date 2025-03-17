@@ -4,6 +4,7 @@
 use super::*;
 use crate::{
     socket::recv,
+    stream::Actor,
     testing::{ext::*, sim},
 };
 use bolero::{check, TypeGenerator};
@@ -29,15 +30,19 @@ struct Model {
 
 impl Default for Model {
     fn default() -> Self {
-        Self::new(Default::default())
+        Self::new(Default::default(), false)
     }
 }
 
 impl Model {
-    fn new(packets: Packets) -> Self {
+    fn new(packets: Packets, non_zero: bool) -> Self {
         let stream_cap = 32;
         let control_cap = 8;
-        let alloc = Allocator::new(stream_cap, control_cap);
+        let alloc = if non_zero {
+            Allocator::new_non_zero(stream_cap, control_cap)
+        } else {
+            Allocator::new(stream_cap, control_cap)
+        };
         let dispatch = alloc.dispatcher();
         let oracle = Oracle::new(packets);
 
@@ -262,10 +267,10 @@ fn model_test() {
     let packets = AssertUnwindSafe(Packets::default());
 
     check!()
-        .with_type::<Vec<Op>>()
+        .with_type::<(bool, Vec<Op>)>()
         .with_test_time(core::time::Duration::from_secs(30))
-        .for_each(move |ops| {
-            let mut model = Model::new(packets.clone());
+        .for_each(move |(non_zero, ops)| {
+            let mut model = Model::new(packets.clone(), *non_zero);
             for op in ops {
                 model.apply(op);
             }
@@ -284,13 +289,13 @@ fn alloc_drop_notify() {
             let (stream, control) = alloc.alloc_or_grow();
 
             async move {
-                stream.recv().await.unwrap_err();
+                stream.recv(Actor::Application).await.unwrap_err();
             }
             .primary()
             .spawn();
 
             async move {
-                control.recv().await.unwrap_err();
+                control.recv(Actor::Application).await.unwrap_err();
             }
             .primary()
             .spawn();

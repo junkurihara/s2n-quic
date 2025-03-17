@@ -5,7 +5,7 @@ use crate::{
     allocator::Allocator,
     clock::Timer,
     event, msg,
-    stream::{shared::ArcShared, socket::Socket},
+    stream::{shared::ArcShared, socket::Socket, Actor},
 };
 use core::task::{Context, Poll};
 use s2n_quic_core::{buffer, endpoint, ensure, ready, time::clock::Timer as _};
@@ -76,7 +76,7 @@ where
 {
     #[inline]
     pub fn new(socket: S, shared: ArcShared<Sub>, endpoint: endpoint::Type) -> Self {
-        let send_buffer = msg::send::Message::new(shared.read_remote_addr(), shared.gso.clone());
+        let send_buffer = msg::send::Message::new(shared.remote_addr(), shared.gso.clone());
         let timer = Timer::new_with_timeout(&shared.clock, INITIAL_TIMEOUT);
 
         let state = match endpoint {
@@ -133,9 +133,13 @@ where
                     // check to see if the application is progressing before peeking the socket
                     ensure!(!self.is_application_progressing(), continue);
 
-                    // peek the socket buffer size - we don't care how big, just that there is at
-                    // least one packet there
-                    let _len = ready!(self.socket.poll_peek_len(cx))?;
+                    // check if we have something pending
+                    ready!(self.shared.receiver.poll_peek_worker(
+                        cx,
+                        &self.socket,
+                        &self.shared.clock,
+                        &self.shared.subscriber,
+                    ));
 
                     self.arm_timer();
                     self.state.on_peek_packet().unwrap();
@@ -306,6 +310,7 @@ where
 
             let res = recv.poll_fill_recv_buffer(
                 cx,
+                Actor::Worker,
                 &self.socket,
                 &self.shared.clock,
                 &self.shared.subscriber,

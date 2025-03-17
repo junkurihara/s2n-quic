@@ -20,15 +20,11 @@ pub struct Id {
 impl fmt::Debug for Id {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if f.alternate() {
-            f.debug_struct("stream::Id")
-                .field("queue_id", &self.queue_id)
-                .field("is_reliable", &self.is_reliable)
-                .field("is_bidirectional", &self.is_bidirectional)
-                .finish()
-        } else {
-            self.into_varint().as_u64().fmt(f)
-        }
+        f.debug_struct("stream::Id")
+            .field("queue_id", &self.queue_id)
+            .field("is_reliable", &self.is_reliable)
+            .field("is_bidirectional", &self.is_bidirectional)
+            .finish()
     }
 }
 
@@ -61,25 +57,6 @@ impl Id {
     pub fn reliable(mut self) -> Self {
         self.is_reliable = true;
         self
-    }
-
-    #[inline]
-    pub fn next(&self) -> Option<Self> {
-        Some(Self {
-            queue_id: self.queue_id.checked_add_usize(1)?,
-            is_reliable: self.is_reliable,
-            is_bidirectional: self.is_bidirectional,
-        })
-    }
-
-    #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = Self> {
-        let mut next = Some(*self);
-        core::iter::from_fn(move || {
-            let current = next;
-            next = next.and_then(|v| v.next());
-            current
-        })
     }
 
     #[inline]
