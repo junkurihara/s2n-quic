@@ -5,7 +5,7 @@
 use alloc::vec::Vec;
 #[cfg(feature = "alloc")]
 pub use bytes::{Bytes, BytesMut};
-use core::fmt::Debug;
+use core::{any::Any, fmt::Debug};
 use zerocopy::{FromBytes, IntoBytes, Unaligned};
 
 mod error;
@@ -22,6 +22,25 @@ pub mod null;
 pub struct ApplicationParameters<'a> {
     /// Encoded transport parameters
     pub transport_parameters: &'a [u8],
+}
+
+/// Holds the named group used for key exchange in the TLS handshake.
+///
+/// `contains_kem` is `true` if the named group contains a key encapsulation mechanism.
+#[derive(Debug, Eq)]
+pub struct NamedGroup {
+    pub group_name: &'static str,
+    pub contains_kem: bool,
+}
+
+// Some TLS implementations do not follow the capitalization in the
+// IANA specification so we ignore capitalization of the group name
+// when comparing `NamedGroup`s
+impl PartialEq for NamedGroup {
+    fn eq(&self, other: &Self) -> bool {
+        self.group_name.eq_ignore_ascii_case(other.group_name)
+            && self.contains_kem == other.contains_kem
+    }
 }
 
 #[derive(Debug)]
@@ -123,6 +142,11 @@ pub trait Context<Crypto: crate::crypto::CryptoSuite> {
         application_protocol: Bytes,
     ) -> Result<(), crate::transport::Error>;
 
+    fn on_key_exchange_group(
+        &mut self,
+        named_group: NamedGroup,
+    ) -> Result<(), crate::transport::Error>;
+
     //= https://www.rfc-editor.org/rfc/rfc9001#section-4.1.1
     //# The TLS handshake is considered complete when the
     //# TLS stack has reported that the handshake is complete.  This happens
@@ -130,6 +154,9 @@ pub trait Context<Crypto: crate::crypto::CryptoSuite> {
     //# peer's Finished message.
     fn on_handshake_complete(&mut self) -> Result<(), crate::transport::Error>;
 
+    /// Set TLS context and transfer from TLS provider to application layer.
+    #[cfg(feature = "alloc")]
+    fn on_tls_context(&mut self, _context: alloc::boxed::Box<dyn Any + Send>);
     fn on_tls_exporter_ready(
         &mut self,
         session: &impl TlsSession,

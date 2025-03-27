@@ -184,6 +184,11 @@ where
 
     #[inline]
     pub fn poll(&mut self, cx: &mut Context) -> Poll<()> {
+        s2n_quic_core::task::waker::debug_assert_contract(cx, |cx| self.poll_impl(cx))
+    }
+
+    #[inline]
+    fn poll_impl(&mut self, cx: &mut Context) -> Poll<()> {
         let initial = self.snapshot();
 
         let is_initial = self.sender.state.is_ready();
@@ -289,10 +294,23 @@ where
         loop {
             let mut publisher = self.shared.publisher();
             // try to receive until we get blocked
-            let _ =
+            let res =
                 ready!(self
                     .recv_buffer
                     .poll_fill(cx, Actor::Worker, &self.socket, &mut publisher));
+
+            if let Err(err) = res {
+                // the error is fatal so shut down
+                if !matches!(
+                    err.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::Interrupted
+                ) {
+                    let _ = self.state.on_finished();
+                }
+
+                return Poll::Ready(());
+            }
+
             self.process_recv_buffer();
         }
     }
