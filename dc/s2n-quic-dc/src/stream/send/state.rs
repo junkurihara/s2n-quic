@@ -96,7 +96,6 @@ pub struct State {
     pub ecn: ecn::Controller,
     pub pto: Pto,
     pub pto_backoff: u32,
-    pub inflight_timer: Timer,
     pub idle_timer: Timer,
     pub idle_timeout: Duration,
     pub error: Option<Error>,
@@ -148,7 +147,6 @@ impl State {
             retransmissions: Default::default(),
             pto: Pto::default(),
             pto_backoff: INITIAL_PTO_BACKOFF,
-            inflight_timer: Default::default(),
             idle_timer: Default::default(),
             idle_timeout: params.max_idle_timeout().unwrap_or(DEFAULT_IDLE_TIMEOUT),
             error: None,
@@ -175,10 +173,15 @@ impl State {
     #[inline]
     pub fn flow_offset(&self) -> VarInt {
         let cca_offset = {
-            let extra_window = self
+            let mut extra_window = self
                 .cca
                 .congestion_window()
                 .saturating_sub(self.cca.bytes_in_flight());
+
+            // only give CCA credits to the application if we were able to retransmit everything considered lost
+            if !self.retransmissions.is_empty() {
+                extra_window = 0;
+            }
 
             self.max_sent_offset + extra_window as usize
         };
@@ -700,7 +703,6 @@ impl State {
 
         // make sure our timers are armed
         self.update_idle_timer(clock);
-        self.update_inflight_timer(clock);
         self.update_pto_timer(clock);
 
         trace!(
@@ -709,7 +711,6 @@ impl State {
             stream_packets_in_flight = self.sent_stream_packets.iter().count(),
             recovery_packets_in_flight = self.sent_recovery_packets.iter().count(),
             pto_timer = ?self.pto.next_expiration(),
-            inflight_timer = ?self.inflight_timer.next_expiration(),
             idle_timer = ?self.idle_timer.next_expiration(),
         );
     }
@@ -736,7 +737,6 @@ impl State {
         // re-arm the idle timer as long as we're not in terminal state
         if !self.state.is_terminal() {
             self.idle_timer.cancel();
-            self.inflight_timer.cancel();
         }
     }
 
@@ -751,15 +751,6 @@ impl State {
             // we don't actually want to send any packets on idle timeout
             let _ = self.state.on_send_reset();
             let _ = self.state.on_recv_reset_ack();
-            return;
-        }
-
-        if self
-            .inflight_timer
-            .poll_expiration(clock.get_time())
-            .is_ready()
-        {
-            self.on_error(error::Kind::IdleTimeout);
             return;
         }
 
@@ -796,12 +787,10 @@ impl State {
         Poll::Ready(())
     }
 
+    /// Returns `true` if there are any outstanding stream segments
     #[inline]
     fn has_inflight_packets(&self) -> bool {
-        !self.sent_stream_packets.is_empty()
-            || !self.sent_recovery_packets.is_empty()
-            || !self.retransmissions.is_empty()
-            || !self.transmit_queue.is_empty()
+        !self.stream_packet_buffers.is_empty()
     }
 
     #[inline]
@@ -813,27 +802,11 @@ impl State {
     }
 
     #[inline]
-    fn update_inflight_timer(&mut self, clock: &impl Clock) {
-        // TODO make this configurable
-        let inflight_timeout = crate::stream::DEFAULT_INFLIGHT_TIMEOUT;
-
-        if self.has_inflight_packets() {
-            if !self.inflight_timer.is_armed() {
-                self.inflight_timer.set(clock.get_time() + inflight_timeout);
-            }
-        } else {
-            self.inflight_timer.cancel();
-        }
-    }
-
-    #[inline]
     fn update_pto_timer(&mut self, clock: &impl Clock) {
         ensure!(!self.pto.is_armed());
 
-        let mut should_arm = self.has_inflight_packets();
-
         // if we have stream packet buffers in flight then arm the PTO
-        should_arm |= !self.stream_packet_buffers.is_empty();
+        let mut should_arm = self.has_inflight_packets();
 
         // if we've sent all of the data/reset and are waiting to clean things up
         should_arm |= self.state.is_data_sent() || self.state.is_reset_sent();
@@ -845,9 +818,14 @@ impl State {
 
     #[inline]
     fn force_arm_pto_timer(&mut self, clock: &impl Clock) {
-        let pto_period = self
+        let mut pto_period = self
             .rtt_estimator
             .pto_period(self.pto_backoff, PacketNumberSpace::Initial);
+
+        // the `Timestamp::elapsed` function rounds up to the nearest 1ms so we need to set a min value
+        // otherwise we'll prematurely trigger a PTO
+        pto_period = pto_period.max(Duration::from_millis(2));
+
         self.pto.update(clock.get_time(), pto_period);
     }
 
@@ -1291,7 +1269,6 @@ impl State {
         let _ = self.sent_recovery_packets.remove_range(range);
 
         self.idle_timer.cancel();
-        self.inflight_timer.cancel();
         self.pto.cancel();
         self.unacked_ranges.clear();
 
@@ -1311,7 +1288,39 @@ impl State {
     #[cfg(debug_assertions)]
     #[inline]
     fn invariants(&self) {
-        // TODO
+        if !self.unacked_ranges.is_empty() {
+            let mut unacked_ranges = self.unacked_ranges.clone();
+            let last = unacked_ranges.inclusive_ranges().next_back().unwrap();
+            unacked_ranges.remove(last).unwrap();
+
+            for (_pn, packet) in self.sent_stream_packets.iter() {
+                if packet.info.payload_len == 0 {
+                    continue;
+                }
+
+                unacked_ranges.remove(packet.info.range()).unwrap();
+            }
+
+            for (_pn, packet) in self.sent_recovery_packets.iter() {
+                if packet.info.payload_len == 0 {
+                    continue;
+                }
+
+                unacked_ranges.remove(packet.info.range()).unwrap();
+            }
+
+            for v in self.retransmissions.iter() {
+                if v.payload_len == 0 {
+                    continue;
+                }
+                unacked_ranges.remove(v.range()).unwrap();
+            }
+
+            assert!(
+                unacked_ranges.is_empty(),
+                "unacked ranges should be empty: {unacked_ranges:?}\n state\n {self:#?}"
+            );
+        }
     }
 
     #[cfg(not(debug_assertions))]
