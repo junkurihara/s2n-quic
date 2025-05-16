@@ -3,11 +3,13 @@
 
 use crate::{
     allocator::Allocator,
-    clock, event, msg,
+    clock,
+    either::Either,
+    event, msg,
     packet::{stream, Packet},
     stream::{
         recv::{self, buffer::Buffer as _},
-        shared::{self, ArcShared},
+        shared::{self, handshake, ArcShared},
         socket::{self, Socket},
         Actor, TransportFeatures,
     },
@@ -20,7 +22,8 @@ use core::{
     task::{Context, Poll},
 };
 use s2n_quic_core::{
-    buffer, dc, ensure, inet::SocketAddress, ready, stream::state, time::Clock, varint::VarInt,
+    buffer, dc, endpoint, ensure, inet::SocketAddress, ready, stream::state, time::Clock,
+    varint::VarInt,
 };
 use std::{
     io,
@@ -30,7 +33,7 @@ use std::{
     },
 };
 
-pub type RecvBuffer = recv::buffer::Either<recv::buffer::Local, recv::buffer::Channel>;
+pub type RecvBuffer = Either<recv::buffer::Local, recv::buffer::Channel>;
 
 /// Who will send ACKs?
 #[derive(Clone, Copy, Debug, Default)]
@@ -86,20 +89,25 @@ pub struct State {
 
 impl State {
     #[inline]
-    pub fn new(
+    pub fn new<C>(
         stream_id: stream::Id,
         params: &dc::ApplicationParams,
         features: TransportFeatures,
         buffer: RecvBuffer,
-    ) -> Self {
-        let receiver = recv::state::State::new(stream_id, params, features);
+        endpoint: endpoint::Type,
+        clock: &C,
+    ) -> Self
+    where
+        C: Clock + ?Sized,
+    {
+        let receiver = recv::state::State::new(stream_id, params, features, clock);
         let reassembler = Default::default();
-        let is_owned_socket = matches!(buffer, recv::buffer::Either::A(recv::buffer::Local { .. }));
+        let is_owned_socket = matches!(buffer, Either::A(recv::buffer::Local { .. }));
         let inner = Inner {
             receiver,
             reassembler,
             buffer,
-            is_handshaking: true,
+            handshake: endpoint.into(),
         };
         let inner = Mutex::new(inner);
         Self {
@@ -135,9 +143,10 @@ impl State {
         // increment the epoch at which we acquired the guard
         self.application_epoch.fetch_add(1, Ordering::AcqRel);
 
-        let inner = self.inner.lock().map_err(|_| {
-            io::Error::new(io::ErrorKind::Other, "shared recv state has been poisoned")
-        })?;
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| io::Error::other("shared recv state has been poisoned"))?;
 
         let initial_state = inner.receiver.state().clone();
 
@@ -189,10 +198,7 @@ impl State {
         match self.inner.try_lock() {
             Ok(lock) => Ok(Some(lock)),
             Err(std::sync::TryLockError::WouldBlock) => Ok(None),
-            Err(_) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                "shared recv state has been poisoned",
-            )),
+            Err(_) => Err(io::Error::other("shared recv state has been poisoned")),
         }
     }
 }
@@ -301,7 +307,7 @@ pub struct Inner {
     pub receiver: recv::state::State,
     pub reassembler: buffer::Reassembler,
     buffer: RecvBuffer,
-    is_handshaking: bool,
+    handshake: handshake::State,
 }
 
 impl fmt::Debug for Inner {
@@ -309,7 +315,7 @@ impl fmt::Debug for Inner {
         f.debug_struct("Inner")
             .field("receiver", &self.receiver)
             .field("reassembler", &self.reassembler)
-            .field("is_handshaking", &self.is_handshaking)
+            .field("handshake", &self.handshake)
             .finish()
     }
 }
@@ -400,7 +406,7 @@ impl Inner {
 
                     let mut router = PacketDispatch::new_stream(
                         &mut self.receiver,
-                        &mut self.is_handshaking,
+                        &mut self.handshake,
                         &mut out_buf,
                         control_opener,
                         clock,
@@ -416,7 +422,7 @@ impl Inner {
 
                     let mut router = PacketDispatch::new_datagram(
                         &mut self.receiver,
-                        &mut self.is_handshaking,
+                        &mut self.handshake,
                         &mut out_buf,
                         control_opener,
                         clock,
@@ -454,9 +460,8 @@ where
     Clk: Clock + ?Sized,
     Sub: event::Subscriber,
 {
-    did_complete_handshake: bool,
     any_valid_packets: bool,
-    is_handshaking: &'a mut bool,
+    handshake: &'a mut handshake::State,
     remote_addr: SocketAddress,
     remote_queue_id: Option<VarInt>,
     receiver: &'a mut recv::state::State,
@@ -477,14 +482,13 @@ where
     #[inline]
     fn new_stream(
         receiver: &'a mut recv::state::State,
-        is_handshaking: &'a mut bool,
+        handshake: &'a mut handshake::State,
         out_buf: &'a mut Buf,
         control_opener: &'a Crypt,
         clock: &'a Clk,
         shared: &'a ArcShared<Sub>,
     ) -> Self {
         Self {
-            did_complete_handshake: false,
             any_valid_packets: false,
             remote_addr: Default::default(),
             remote_queue_id: None,
@@ -493,7 +497,7 @@ where
             out_buf,
             shared,
             clock,
-            is_handshaking,
+            handshake,
         }
     }
 }
@@ -509,14 +513,13 @@ where
     #[inline]
     fn new_datagram(
         receiver: &'a mut recv::state::State,
-        is_handshaking: &'a mut bool,
+        handshake: &'a mut handshake::State,
         out_buf: &'a mut Buf,
         control_opener: &'a Crypt,
         clock: &'a Clk,
         shared: &'a ArcShared<Sub>,
     ) -> Self {
         Self {
-            did_complete_handshake: false,
             any_valid_packets: false,
             remote_addr: Default::default(),
             remote_queue_id: None,
@@ -525,7 +528,7 @@ where
             out_buf,
             shared,
             clock,
-            is_handshaking,
+            handshake,
         }
     }
 }
@@ -574,18 +577,18 @@ where
                         self.any_valid_packets = true;
                         self.remote_addr = *remote_addr;
 
-                        if source_queue_id.is_some() {
-                            self.remote_queue_id = source_queue_id;
+                        if !matches!(self.handshake, handshake::State::Finished) {
+                            // we got a valid stream packet
+                            let _ = self.handshake.on_stream_packet();
+
+                            // check if we got a non-zero value
+                            if packet.next_expected_control_packet().as_u64() > 0 {
+                                let _ = self.handshake.on_non_zero_next_expected_control_packet();
+                            }
                         }
 
-                        if *self.is_handshaking {
-                            // if the peer has seen at least one packet from us, then transition to handshake complete
-                            let peer_has_seen_control_packet =
-                                packet.next_expected_control_packet().as_u64() > 0;
-                            if peer_has_seen_control_packet {
-                                *self.is_handshaking = false;
-                                self.did_complete_handshake = true;
-                            }
+                        if source_queue_id.is_some() {
+                            self.remote_queue_id = source_queue_id;
                         }
 
                         <Result<_, recv::Error>>::Ok(())
@@ -609,6 +612,9 @@ where
                 if !IS_STREAM {
                     // TODO if the packet was authentic then close the receiver with an error
                     // Datagram-based streams just drop unexpected packets
+
+                    tracing::trace!("unexpected packet: {other:?}");
+
                     return Ok(());
                 }
 
@@ -633,10 +639,7 @@ where
     #[inline]
     fn drop(&mut self) {
         ensure!(self.any_valid_packets);
-        self.shared.on_valid_packet(
-            &self.remote_addr,
-            self.remote_queue_id,
-            self.did_complete_handshake,
-        );
+        self.shared
+            .on_valid_packet(&self.remote_addr, self.remote_queue_id, self.handshake);
     }
 }
