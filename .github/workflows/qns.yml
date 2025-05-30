@@ -5,6 +5,9 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    # Run daily job at 8:00 PM PT
+    - cron: '0 3 * * *'
 
 name: qns
 
@@ -222,14 +225,14 @@ jobs:
           done
 
       - uses: aws-actions/configure-aws-credentials@v4.2.1
-        if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
+        if: github.event_name == 'push' || github.event_name == 'schedule' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
           role-session-name: S2nQuicGHAS3Session
           aws-region: us-west-2
 
       - name: Upload to S3
-        if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
+        if: github.event_name == 'push' || github.event_name == 'schedule' || github.repository == github.event.pull_request.head.repo.full_name
         id: s3
         working-directory: quic-interop-runner
         run: |
@@ -307,8 +310,8 @@ jobs:
             results/**/result.json > \
               web/logs/latest/result.json
 
-      - name: Generate report for push to main
-        if: github.event_name == 'push'
+      - name: Generate report for push to main or daily schedule job
+        if: github.event_name == 'push' || github.event_name == 'schedule'
         run: |
           mkdir -p web/logs/latest
           python3 .github/interop/merge.py \
@@ -320,14 +323,14 @@ jobs:
               web/logs/latest/result.json
 
       - uses: aws-actions/configure-aws-credentials@v4.2.1
-        if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
+        if: github.event_name == 'push' || github.event_name == 'schedule' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
           role-session-name: S2nQuicGHAS3Session
           aws-region: us-west-2
 
       - name: Upload to S3
-        if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
+        if: github.event_name == 'push' || github.event_name == 'schedule' || github.repository == github.event.pull_request.head.repo.full_name
         id: s3
         run: |
           cp .github/interop/*.html web/
@@ -478,14 +481,14 @@ jobs:
           tree -H "." -T "Performance Results" --noreport --charset utf-8 > index.html
 
       - uses: aws-actions/configure-aws-credentials@v4.2.1
-        if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
+        if: github.event_name == 'push' || github.event_name == 'schedule' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
           role-session-name: S2nQuicGHAS3Session
           aws-region: us-west-2
 
       - name: Upload results
-        if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
+        if: github.event_name == 'push' || github.event_name == 'schedule' || github.repository == github.event.pull_request.head.repo.full_name
         id: s3
         run: |
           TARGET_SHA="${{ github.sha }}/perf"
@@ -548,3 +551,20 @@ jobs:
           set -e
           # `timeout` exits with `124` if the time limit was reached
           [[ "$EXIT_CODE" == "124" ]] || exit $EXIT_CODE
+
+  scheduled-qns-status-report:
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs: [env, s2n-quic-qns, interop, interop-report, h3spec, perf, perf-report, attack]
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4.2.1
+        if: github.event_name == 'schedule'
+        with:
+          role-to-assume: arn:aws:iam::003495580562:role/GitHubOIDCRole
+          role-session-name: S2nQuicGHASession
+          aws-region: us-west-2
+      - name: Report daily qns run to CloudWatch
+        if: github.event_name == 'schedule'
+        run: |
+          METRIC_VALUE=${{ contains(needs.*.result, 'failure') && '1' || '0' }}
+          aws cloudwatch put-metric-data --namespace "Github" --metric-name "ActionCIFaliure" --value $METRIC_VALUE --dimensions Initiator=scheduled --timestamp $(date +%s)
