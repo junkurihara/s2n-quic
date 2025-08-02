@@ -1,9 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use s2n_quic::Server;
+use s2n_quic::{
+    Server,
+    provider::tls::{
+        default,
+        offload::{Executor, OffloadBuilder},
+    },
+};
 use std::error::Error;
-use tokio::io::AsyncWriteExt;
 
 /// NOTE: this certificate is to be used for demonstration purposes only!
 pub static CERT_PEM: &str = include_str!(concat!(
@@ -16,10 +21,26 @@ pub static KEY_PEM: &str = include_str!(concat!(
     "/../../quic/s2n-quic-core/certs/key.pem"
 ));
 
+struct TokioExecutor;
+impl Executor for TokioExecutor {
+    fn spawn(&self, task: impl core::future::Future<Output = ()> + Send + 'static) {
+        tokio::spawn(task);
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let tls = default::Server::builder()
+        .with_certificate(CERT_PEM, KEY_PEM)?
+        .build()?;
+
+    let tls_endpoint = OffloadBuilder::new()
+        .with_endpoint(tls)
+        .with_executor(TokioExecutor)
+        .build();
+
     let mut server = Server::builder()
-        .with_tls((CERT_PEM, KEY_PEM))?
+        .with_tls(tls_endpoint)?
         .with_io("127.0.0.1:4433")?
         .start()?;
 
@@ -33,10 +54,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 tokio::spawn(async move {
                     eprintln!("Stream opened from {:?}", stream.connection().remote_addr());
 
-                    // respond to the client with our own message
-                    if let Ok(Some(data)) = stream.receive().await {
-                        eprintln!("message from the client: {data:?}");
-                        let _ = stream.write_all(b"hello post-quantum client!\n").await;
+                    // echo any data back to the stream
+                    while let Ok(Some(data)) = stream.receive().await {
+                        stream.send(data).await.expect("stream should be open");
                     }
                 });
             }
