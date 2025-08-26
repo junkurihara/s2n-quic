@@ -340,6 +340,10 @@ impl Server {
     pub fn subscriber(&self) -> Arc<testing::Subscriber> {
         self.subscriber.clone()
     }
+
+    pub fn map(&self) -> &crate::path::secret::Map {
+        &self.handle.map
+    }
 }
 
 pub(crate) mod drop_handle {
@@ -559,11 +563,12 @@ pub mod server {
                     Protocol::Tcp => {
                         let socket = options.build_tcp_listener().unwrap();
                         let local_addr = socket.local_addr().unwrap();
-                        let socket = ::tokio::net::TcpListener::from_std(socket).unwrap();
+                        let socket = ::tokio::io::unix::AsyncFd::new(socket).unwrap();
 
                         let acceptor = stream_server::tokio::tcp::Acceptor::new(
                             0, socket, &sender, &env, &map, backlog, flavor, linger,
-                        );
+                        )
+                        .unwrap();
                         let acceptor = drop_handle_receiver.wrap(acceptor.run());
                         let acceptor = acceptor.instrument(tracing::info_span!("tcp"));
                         ::tokio::task::spawn(acceptor);
