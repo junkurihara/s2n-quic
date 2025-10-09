@@ -9,7 +9,7 @@ use crate::{
     packet::{stream, Packet},
     stream::{
         recv::{self, buffer::Buffer as _},
-        shared::{self, handshake, ArcShared},
+        shared::{self, handshake, AcceptState, ArcShared, ShutdownKind},
         socket::{self, Socket},
         Actor, TransportFeatures,
     },
@@ -22,7 +22,13 @@ use core::{
     task::{Context, Poll},
 };
 use s2n_quic_core::{
-    buffer, dc, endpoint, ensure, inet::SocketAddress, ready, stream::state, time::Clock,
+    buffer, dc,
+    endpoint::{self, Location},
+    ensure,
+    inet::SocketAddress,
+    ready,
+    stream::state,
+    time::Clock,
     varint::VarInt,
 };
 use std::{
@@ -47,12 +53,13 @@ pub enum AckMode {
 
 pub enum ApplicationState {
     Open,
-    Closed { is_panicking: bool },
+    Closed { shutdown_kind: ShutdownKind },
 }
 
 impl ApplicationState {
     const IS_CLOSED_MASK: u8 = 1;
     const IS_PANICKING_MASK: u8 = 1 << 1;
+    const IS_PRUNED_MASK: u8 = 1 << 2;
 
     #[inline]
     fn load(shared: &AtomicU8) -> Self {
@@ -61,17 +68,29 @@ impl ApplicationState {
             return Self::Open;
         }
 
-        let is_panicking = value & Self::IS_PANICKING_MASK != 0;
+        let shutdown_kind = if (value & Self::IS_PRUNED_MASK) != 0 {
+            ShutdownKind::Pruned
+        } else if (value & Self::IS_PANICKING_MASK) != 0 {
+            ShutdownKind::Panicking
+        } else {
+            ShutdownKind::Normal
+        };
 
-        Self::Closed { is_panicking }
+        Self::Closed { shutdown_kind }
     }
 
     #[inline]
-    fn close(shared: &AtomicU8, is_panicking: bool) {
+    fn close(shared: &AtomicU8, kind: ShutdownKind) {
         let mut value = Self::IS_CLOSED_MASK;
 
-        if is_panicking {
-            value |= Self::IS_PANICKING_MASK;
+        match kind {
+            ShutdownKind::Normal => {}
+            ShutdownKind::Panicking => {
+                value |= Self::IS_PANICKING_MASK;
+            }
+            ShutdownKind::Pruned => {
+                value |= Self::IS_PRUNED_MASK;
+            }
         }
 
         shared.store(value, Ordering::Release);
@@ -164,16 +183,33 @@ impl State {
     }
 
     #[inline]
-    pub fn shutdown(&self, is_panicking: bool) {
-        ApplicationState::close(&self.application_state, is_panicking);
+    pub fn shutdown(&self, shutdown_kind: ShutdownKind) {
+        ApplicationState::close(&self.application_state, shutdown_kind);
         self.worker_waker.wake();
     }
 
+    pub fn on_prune<Pub>(&self, publisher: &Pub)
+    where
+        Pub: event::ConnectionPublisher,
+    {
+        self.notify_error(
+            recv::error::Kind::ApplicationError {
+                error: ShutdownKind::PRUNED_CODE.into(),
+            }
+            .err(),
+            Location::Local,
+            publisher,
+        );
+    }
+
     #[inline]
-    pub fn notify_error(&self, error: recv::Error) {
+    pub fn notify_error<Pub>(&self, error: recv::Error, source: Location, publisher: &Pub)
+    where
+        Pub: event::ConnectionPublisher,
+    {
         let waker = {
             let mut inner = self.inner.lock().unwrap();
-            inner.receiver.on_error(error);
+            inner.receiver.on_error(error, source, publisher);
             inner.application_waker.take()
         };
         self.worker_waker.wake();
@@ -318,7 +354,7 @@ where
 
         // shut down the worker if we're in a terminal state
         if current_state.is_terminal() {
-            self.shared.receiver.shutdown(false);
+            self.shared.receiver.shutdown(ShutdownKind::Normal);
         }
     }
 }
@@ -368,6 +404,7 @@ impl Inner {
             source_queue_id,
             send_buffer,
             &shared.clock,
+            &shared.publisher(),
         );
 
         ensure!(!send_buffer.is_empty());
@@ -415,16 +452,18 @@ impl Inner {
         out_buf: &mut impl buffer::writer::Storage,
         shared: &ArcShared<Sub>,
         features: TransportFeatures,
+        accept_state: AcceptState,
     ) -> bool
     where
         Sub: event::Subscriber,
     {
         let clock = clock::Cached::new(&shared.clock);
         let clock = &clock;
+        let publisher = shared.publisher_with_timestamp(clock.get_time());
 
         // try copying data out of the reassembler into the application buffer
         self.receiver
-            .on_read_buffer(&mut self.reassembler, out_buf, clock);
+            .on_read_buffer(&mut self.reassembler, out_buf, accept_state, clock);
 
         // check if we have any packets to process
         if !self.buffer.is_empty() {
@@ -443,6 +482,7 @@ impl Inner {
                         control_opener,
                         clock,
                         shared,
+                        accept_state,
                     );
 
                     self.buffer.process(features, &mut router)
@@ -459,6 +499,7 @@ impl Inner {
                         control_opener,
                         clock,
                         shared,
+                        accept_state,
                     );
 
                     self.buffer.process(features, &mut router)
@@ -466,18 +507,18 @@ impl Inner {
             };
 
             if let Err(err) = res {
-                self.receiver.on_error(err);
+                self.receiver.on_error(err, Location::Local, &publisher);
             }
 
             // if we processed packets then we may have data to copy out
             self.receiver
-                .on_read_buffer(&mut self.reassembler, out_buf, clock);
+                .on_read_buffer(&mut self.reassembler, out_buf, accept_state, clock);
         }
 
         // we only check for timeouts on unreliable transports
         if !features.is_reliable() {
             self.receiver
-                .on_timeout(clock, || shared.last_peer_activity());
+                .on_timeout(clock, || shared.last_peer_activity(), &publisher);
         }
 
         // indicate to the caller if we need to transmit an ACK
@@ -501,6 +542,8 @@ where
     out_buf: &'a mut Buf,
     shared: &'a ArcShared<Sub>,
     clock: &'a Clk,
+    accept_state: AcceptState,
+    publisher: event::ConnectionPublisherSubscriber<'a, Sub>,
 }
 
 impl<'a, Buf, Crypt, Clk, Sub> PacketDispatch<'a, Buf, Crypt, Clk, Sub, true>
@@ -519,7 +562,9 @@ where
         control_opener: &'a Crypt,
         clock: &'a Clk,
         shared: &'a ArcShared<Sub>,
+        accept_state: AcceptState,
     ) -> Self {
+        let publisher = shared.publisher();
         Self {
             any_valid_packets: false,
             remote_addr: Default::default(),
@@ -530,6 +575,8 @@ where
             shared,
             clock,
             handshake,
+            accept_state,
+            publisher,
         }
     }
 }
@@ -550,7 +597,9 @@ where
         control_opener: &'a Crypt,
         clock: &'a Clk,
         shared: &'a ArcShared<Sub>,
+        accept_state: AcceptState,
     ) -> Self {
+        let publisher = shared.publisher();
         Self {
             any_valid_packets: false,
             remote_addr: Default::default(),
@@ -561,6 +610,8 @@ where
             shared,
             clock,
             handshake,
+            accept_state,
+            publisher,
         }
     }
 }
@@ -583,9 +634,11 @@ where
         match packet {
             Packet::Stream(mut packet) => {
                 // make sure the packet looks OK before deriving openers from it
-                let precheck = self
-                    .receiver
-                    .precheck_stream_packet(self.shared.credentials(), &packet);
+                let precheck = self.receiver.precheck_stream_packet(
+                    self.shared.credentials(),
+                    &packet,
+                    &self.publisher,
+                );
 
                 if IS_STREAM {
                     // datagrams drop invalid packets - streams error out since the stream can't recover
@@ -596,15 +649,23 @@ where
 
                 let _ = self.shared.crypto.open_with(
                     |opener| {
+                        let accept_state = if IS_STREAM {
+                            // Streaming transport handles accept state internally
+                            AcceptState::Accepted
+                        } else {
+                            self.accept_state
+                        };
+
                         self.receiver.on_stream_packet(
                             opener,
                             self.control_opener,
                             self.shared.credentials(),
                             &mut packet,
                             ecn,
+                            accept_state,
                             self.clock,
                             self.out_buf,
-                            &self.shared.subscriber,
+                            &self.publisher,
                         )?;
 
                         self.any_valid_packets = true;

@@ -27,51 +27,59 @@ impl OutputMode {
             OutputMode::Mut => quote!(mut),
         }
     }
+}
 
+#[derive(Debug, Default)]
+pub struct GenerateConfig {
+    pub mode: OutputMode,
+    pub c_api: bool,
+}
+
+impl GenerateConfig {
     pub fn counter_type(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(AtomicU64),
             OutputMode::Mut => quote!(u64),
         }
     }
 
     pub fn counter_init(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(AtomicU64::new(0)),
             OutputMode::Mut => quote!(0),
         }
     }
 
     pub fn counter_increment(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(.fetch_add(1, Ordering::Relaxed)),
             OutputMode::Mut => quote!(+= 1),
         }
     }
 
     pub fn counter_increment_by(&self, value: TokenStream) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(.fetch_add(#value, Ordering::Relaxed)),
             OutputMode::Mut => quote!(+= #value),
         }
     }
 
     pub fn counter_load(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(.load(Ordering::Relaxed)),
             OutputMode::Mut => quote!(),
         }
     }
 
     pub fn lock(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(.lock().unwrap()),
             OutputMode::Mut => quote!(),
         }
     }
 
     pub fn imports(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(
                 use core::sync::atomic::{AtomicU64, Ordering};
             ),
@@ -80,7 +88,7 @@ impl OutputMode {
     }
 
     pub fn mutex(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(
                 use std::sync::Mutex;
             ),
@@ -89,21 +97,21 @@ impl OutputMode {
     }
 
     pub fn testing_output_type(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(Mutex<Vec<String>>),
             OutputMode::Mut => quote!(Vec<String>),
         }
     }
 
     pub fn trait_constraints(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!('static + Send + Sync),
             OutputMode::Mut => quote!('static + Send),
         }
     }
 
     pub fn query_mut(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(),
             OutputMode::Mut => quote!(
                 /// Used for querying and mutating the `Subscriber::ConnectionContext` on a Subscriber
@@ -119,7 +127,7 @@ impl OutputMode {
     }
 
     pub fn query_mut_tuple(&self) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(),
             OutputMode::Mut => quote!(
                 #[inline]
@@ -136,10 +144,23 @@ impl OutputMode {
         }
     }
 
+    fn supervisor_supported(&self) -> bool {
+        // The supervisor feature will require additional effort to expose a C API for. For now,
+        // this feature is disabled for simplicity.
+        if self.c_api {
+            return false;
+        }
+
+        match self.mode {
+            OutputMode::Ref => false,
+            OutputMode::Mut => true,
+        }
+    }
+
     pub fn supervisor(&self) -> TokenStream {
-        match self {
-            OutputMode::Ref => quote!(),
-            OutputMode::Mut => quote!(
+        match self.supervisor_supported() {
+            false => quote!(),
+            true => quote!(
                 pub mod supervisor {
                     //! This module contains the `supervisor::Outcome` and `supervisor::Context` for use
                     //! when implementing [`Subscriber::supervisor_timeout`](crate::event::Subscriber::supervisor_timeout) and
@@ -207,9 +228,9 @@ impl OutputMode {
     }
 
     pub fn supervisor_timeout(&self) -> TokenStream {
-        match self {
-            OutputMode::Ref => quote!(),
-            OutputMode::Mut => quote!(
+        match self.supervisor_supported() {
+            false => quote!(),
+            true => quote!(
                 /// The period at which `on_supervisor_timeout` is called
                 ///
                 /// If multiple `event::Subscriber`s are composed together, the minimum `supervisor_timeout`
@@ -250,9 +271,9 @@ impl OutputMode {
     }
 
     pub fn supervisor_timeout_tuple(&self) -> TokenStream {
-        match self {
-            OutputMode::Ref => quote!(),
-            OutputMode::Mut => quote!(
+        match self.supervisor_supported() {
+            false => quote!(),
+            true => quote!(
                 #[inline]
                 fn supervisor_timeout(
                     &mut self,
@@ -303,7 +324,7 @@ impl OutputMode {
     }
 
     pub fn ref_subscriber(&self, inner: TokenStream) -> TokenStream {
-        match self {
+        match self.mode {
             OutputMode::Ref => quote!(
                 impl<T: Subscriber> Subscriber for std::sync::Arc<T> {
                     #inner

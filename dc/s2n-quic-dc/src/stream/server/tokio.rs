@@ -22,6 +22,16 @@ use std::{io, net::SocketAddr, time::Duration};
 use tokio::io::unix::AsyncFd;
 use tracing::{trace, Instrument as _};
 
+// The kernel contends on fdtable lock when calling accept to locate free file
+// descriptors, so even if we don't contend on the underlying socket (due to
+// REUSEPORT) it still ends up expensive to have large amounts of threads trying to
+// accept() within a single process. Clamp concurrency to at most 4 threads
+// executing the TCP acceptor tasks accordingly.
+//
+// With UDP there's ~no lock contention for receiving packets on separate UDP sockets,
+// so we don't clamp concurrency in that case.
+const MAX_TCP_WORKERS: usize = 4;
+
 pub mod tcp;
 pub mod udp;
 
@@ -300,7 +310,11 @@ impl Builder {
         };
 
         // split the backlog between all of the workers
-        let backlog = backlog.div_ceil(concurrency).max(1);
+        //
+        // this is only used in TCP, so clamp division to maximum TCP worker concurrency
+        let backlog = backlog
+            .div_ceil(concurrency.clamp(0, MAX_TCP_WORKERS))
+            .max(1);
 
         Start {
             enable_tcp: self.enable_tcp,
@@ -349,10 +363,10 @@ impl<H: Handshake + Clone, S: event::Subscriber + Clone> Start<'_, H, S> {
             // find a port and spawn the initial listeners
             self.spawn_initial_wildcard_pair()?;
             // spawn the rest of the concurrency
-            self.spawn_count(self.concurrency - 1)?;
+            self.spawn_count(self.concurrency - 1, 1)?;
         } else {
             // otherwise spawn things as normal
-            self.spawn_count(self.concurrency)?;
+            self.spawn_count(self.concurrency, 0)?;
         }
 
         debug_assert_ne!(
@@ -399,20 +413,25 @@ impl<H: Handshake + Clone, S: event::Subscriber + Clone> Start<'_, H, S> {
     }
 
     #[inline]
-    fn spawn_count(&mut self, count: usize) -> io::Result<()> {
+    fn spawn_count(&mut self, count: usize, already_running: usize) -> io::Result<()> {
         for protocol in [socket::Protocol::Udp, socket::Protocol::Tcp] {
             match protocol {
                 socket::Protocol::Udp => ensure!(self.enable_udp, continue),
                 socket::Protocol::Tcp => ensure!(self.enable_tcp, continue),
                 _ => continue,
             }
-            for _ in 0..count {
+
+            for idx in 0..count {
                 match protocol {
                     socket::Protocol::Udp => {
                         let socket = self.socket_opts(self.server.local_addr).build_udp()?;
                         self.spawn_udp(socket)?;
                     }
                     socket::Protocol::Tcp => {
+                        if idx + already_running >= MAX_TCP_WORKERS {
+                            continue;
+                        }
+
                         let socket = self
                             .socket_opts(self.server.local_addr)
                             .build_tcp_listener()?;
@@ -430,7 +449,12 @@ impl<H: Handshake + Clone, S: event::Subscriber + Clone> Start<'_, H, S> {
     fn socket_opts(&self, local_addr: SocketAddr) -> socket::Options {
         let mut options = socket::Options::new(local_addr);
 
-        options.backlog = self.backlog;
+        // Explicitly do **not** set the socket backlog to self.backlog. While we split the
+        // configured backlog amongst our in-process queues as concurrency increases, it doesn't
+        // make sense to shrink the kernel backlogs -- that just causes packet drops and generally
+        // bad behavior.
+        //
+        // This is especially true for TCP where we don't have workers matching concurrency.
         options.send_buffer = self.send_buffer;
         options.recv_buffer = self.recv_buffer;
         options.reuse_address = self.reuse_addr;
@@ -499,6 +523,7 @@ impl<H: Handshake + Clone, S: event::Subscriber + Clone> Start<'_, H, S> {
             self.backlog,
             self.accept_flavor,
             self.linger,
+            tcp::worker::DefaultBehavior,
         )?
         .run();
 

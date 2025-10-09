@@ -146,6 +146,11 @@ impl Packet<'_> {
         self.auth_tag
     }
 
+    #[inline]
+    pub fn total_len(&self) -> usize {
+        self.header.len() + self.auth_tag.len()
+    }
+
     #[inline(always)]
     pub fn decode<V: Validator>(
         buffer: DecoderBufferMut,
@@ -277,6 +282,13 @@ impl Packet<'_> {
 
 pub struct ControlFramesMut<'a> {
     buffer: &'a mut [u8],
+}
+
+impl<'a> ControlFramesMut<'a> {
+    #[inline]
+    pub(crate) fn new(buffer: &'a mut [u8]) -> Self {
+        Self { buffer }
+    }
 }
 
 impl<'a> Iterator for ControlFramesMut<'a> {

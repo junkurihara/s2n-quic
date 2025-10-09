@@ -6,8 +6,11 @@ on:
     branches:
       - main
   schedule:
-    # Run daily job at 8:00 PM PT
-    - cron: '0 3 * * *'
+    # Run daily job at 8:00 AM PT.
+    # The workflow is run in the morning to allow for the clippy job to resolve lints from new Rust
+    # versions in a timely manner.
+    - cron: '0 15 * * *'
+  workflow_dispatch:
 
 name: ci
 
@@ -18,7 +21,7 @@ env:
   RUST_BACKTRACE: 1
   # Pin the nightly toolchain to prevent breakage.
   # This should be occasionally updated.
-  RUST_NIGHTLY_TOOLCHAIN: nightly-2025-01-31
+  RUST_NIGHTLY_TOOLCHAIN: nightly-2025-03-31
   CDN: https://dnglbrstg7yg.cloudfront.net
   # enable unstable features for testing
   S2N_UNSTABLE_CRYPTO_OPT_TX: 100
@@ -119,12 +122,20 @@ jobs:
 
       - uses: camshaft/rust-cache@v1
 
+      - name: Determine if a PR should be opened
+        id: should_fix
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "SHOULD_FIX=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "SHOULD_FIX=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # TODO translate json reports to in-action warnings
       - name: Run cargo clippy on all workspaces
         run: |
-          # Clippy bot only runs on schedule event
           CLIPPY_FIX_FLAG=""
-          if [ "${{ github.event_name }}" == "schedule" ]; then
+          if [ "${{ steps.should_fix.outputs.SHOULD_FIX }}" == "true" ]; then
             CLIPPY_FIX_FLAG='--fix --allow-dirty'
           fi
 
@@ -137,9 +148,11 @@ jobs:
           done
 
       - name: Create clippy pull request
-        if: github.event_name == 'schedule'
+        if: steps.should_fix.outputs.SHOULD_FIX == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
+          commit-message: |
+            chore: clippy lint updates
           title: 'chore: clippy lint updates'
           body: |
             ### Description of changes: 
@@ -195,7 +208,7 @@ jobs:
         env:
           RUSTDOCFLAGS: --cfg docsrs
 
-      - uses: aws-actions/configure-aws-credentials@v5.0.0
+      - uses: aws-actions/configure-aws-credentials@v5.1.0
         if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
@@ -459,7 +472,7 @@ jobs:
       - name: Run cargo llvm-cov
         run: cargo llvm-cov --html --no-fail-fast --workspace --exclude s2n-quic-qns --all-features
 
-      - uses: aws-actions/configure-aws-credentials@v5.0.0
+      - uses: aws-actions/configure-aws-credentials@v5.1.0
         if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
@@ -573,7 +586,7 @@ jobs:
         run: |
           ./scripts/recovery-sim
 
-      - uses: aws-actions/configure-aws-credentials@v5.0.0
+      - uses: aws-actions/configure-aws-credentials@v5.1.0
         if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
@@ -624,7 +637,7 @@ jobs:
         run: |
           ./scripts/sim
 
-      - uses: aws-actions/configure-aws-credentials@v5.0.0
+      - uses: aws-actions/configure-aws-credentials@v5.1.0
         if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
@@ -769,7 +782,7 @@ jobs:
           cd examples/echo
           cargo build --timings --release --workspace
 
-      - uses: aws-actions/configure-aws-credentials@v5.0.0
+      - uses: aws-actions/configure-aws-credentials@v5.1.0
         if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
@@ -870,7 +883,7 @@ jobs:
           mv report.tsv target/report/
           mv dhat-heap.json target/report/
 
-      - uses: aws-actions/configure-aws-credentials@v5.0.0
+      - uses: aws-actions/configure-aws-credentials@v5.1.0
         if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
         with:
           role-to-assume: arn:aws:iam::024603541914:role/GitHubOIDCRole
@@ -996,7 +1009,7 @@ jobs:
     if: ${{ always() }}
     needs: [env, rustfmt, clippy, udeps, doc, test, asan, fips, miri, no_std, compliance, coverage, crates, examples, recovery-simulations, sims, copyright, s2n-events, generate-events, snapshots, timing, typos, kani, dhat, loom, xdp, dc-wireshark]
     steps:
-      - uses: aws-actions/configure-aws-credentials@v5.0.0
+      - uses: aws-actions/configure-aws-credentials@v5.1.0
         if: github.event_name != 'pull_request'
         with:
           role-to-assume: arn:aws:iam::003495580562:role/GitHubOIDCRole
