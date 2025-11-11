@@ -271,6 +271,66 @@ pub mod api {
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
+    #[doc = " Emitted when the TCP stream has been sent over a Unix domain socket"]
+    pub struct AcceptorTcpSocketSent<'a> {
+        #[doc = " The credential ID of the stream"]
+        pub credential_id: &'a [u8],
+        #[doc = " The ID of the stream"]
+        pub stream_id: u64,
+        #[doc = " The amount of time the TCP stream spent in the queue before being sent over Unix domain socket"]
+        pub sojourn_time: core::time::Duration,
+        #[doc = " The number of times the Unix domain socket was blocked on send"]
+        pub blocked_count: usize,
+        #[doc = " The len of the payload sent over the Unix domain socket"]
+        pub payload_len: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for AcceptorTcpSocketSent<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("AcceptorTcpSocketSent");
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("stream_id", &self.stream_id);
+            fmt.field("sojourn_time", &self.sojourn_time);
+            fmt.field("blocked_count", &self.blocked_count);
+            fmt.field("payload_len", &self.payload_len);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for AcceptorTcpSocketSent<'a> {
+        const NAME: &'static str = "acceptor:tcp:socket_sent";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    #[doc = " Emitted when a TCP stream has been received from a Unix domain socket"]
+    pub struct AcceptorTcpSocketReceived<'a> {
+        #[doc = " The address of the stream's peer"]
+        pub remote_address: SocketAddress<'a>,
+        #[doc = " The credential ID of the stream"]
+        pub credential_id: &'a [u8],
+        #[doc = " The ID of the stream"]
+        pub stream_id: u64,
+        #[doc = " The amount of time taken from socket send to socket receive, including waiting if the kernel queue is full"]
+        pub transfer_time: core::time::Duration,
+        #[doc = " The len of the payload sent over the Unix domain socket"]
+        pub payload_len: usize,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for AcceptorTcpSocketReceived<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("AcceptorTcpSocketReceived");
+            fmt.field("remote_address", &self.remote_address);
+            fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("stream_id", &self.stream_id);
+            fmt.field("transfer_time", &self.transfer_time);
+            fmt.field("payload_len", &self.payload_len);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for AcceptorTcpSocketReceived<'a> {
+        const NAME: &'static str = "acceptor:tcp:socket_received";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
     #[doc = " Emitted when a UDP acceptor is started"]
     pub struct AcceptorUdpStarted<'a> {
         #[doc = " The id of the acceptor worker"]
@@ -2195,6 +2255,42 @@ pub mod api {
     impl Event for PathSecretMapCleanerCycled {
         const NAME: &'static str = "path_secret_map:cleaner_cycled";
     }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct PathSecretMapIdWriteLock {
+        pub acquire: core::time::Duration,
+        pub duration: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for PathSecretMapIdWriteLock {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapIdWriteLock");
+            fmt.field("acquire", &self.acquire);
+            fmt.field("duration", &self.duration);
+            fmt.finish()
+        }
+    }
+    impl Event for PathSecretMapIdWriteLock {
+        const NAME: &'static str = "path_secret_map:id_cache_write_lock";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    pub struct PathSecretMapAddressWriteLock {
+        pub acquire: core::time::Duration,
+        pub duration: core::time::Duration,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for PathSecretMapAddressWriteLock {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapAddressWriteLock");
+            fmt.field("acquire", &self.acquire);
+            fmt.field("duration", &self.duration);
+            fmt.finish()
+        }
+    }
+    impl Event for PathSecretMapAddressWriteLock {
+        const NAME: &'static str = "path_secret_map:address_cache_write_lock";
+    }
     impl IntoEvent<builder::AcceptorPacketDropReason> for s2n_codec::DecoderError {
         fn into_event(self) -> builder::AcceptorPacketDropReason {
             use builder::AcceptorPacketDropReason as Reason;
@@ -2375,6 +2471,38 @@ pub mod tracing {
             let parent = self.parent(meta);
             let api::AcceptorTcpIoError { error } = event;
             tracing :: event ! (target : "acceptor_tcp_io_error" , parent : parent , tracing :: Level :: DEBUG , { error = tracing :: field :: debug (error) });
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketSent,
+        ) {
+            let parent = self.parent(meta);
+            let api::AcceptorTcpSocketSent {
+                credential_id,
+                stream_id,
+                sojourn_time,
+                blocked_count,
+                payload_len,
+            } = event;
+            tracing :: event ! (target : "acceptor_tcp_socket_sent" , parent : parent , tracing :: Level :: DEBUG , { credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , sojourn_time = tracing :: field :: debug (sojourn_time) , blocked_count = tracing :: field :: debug (blocked_count) , payload_len = tracing :: field :: debug (payload_len) });
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketReceived,
+        ) {
+            let parent = self.parent(meta);
+            let api::AcceptorTcpSocketReceived {
+                remote_address,
+                credential_id,
+                stream_id,
+                transfer_time,
+                payload_len,
+            } = event;
+            tracing :: event ! (target : "acceptor_tcp_socket_received" , parent : parent , tracing :: Level :: DEBUG , { remote_address = tracing :: field :: debug (remote_address) , credential_id = tracing :: field :: debug (credential_id) , stream_id = tracing :: field :: debug (stream_id) , transfer_time = tracing :: field :: debug (transfer_time) , payload_len = tracing :: field :: debug (payload_len) });
         }
         #[inline]
         fn on_acceptor_udp_started(
@@ -3381,6 +3509,26 @@ pub mod tracing {
             } = event;
             tracing :: event ! (target : "path_secret_map_cleaner_cycled" , parent : parent , tracing :: Level :: DEBUG , { id_entries = tracing :: field :: debug (id_entries) , id_entries_retired = tracing :: field :: debug (id_entries_retired) , id_entries_active = tracing :: field :: debug (id_entries_active) , id_entries_active_utilization = tracing :: field :: debug (id_entries_active_utilization) , id_entries_utilization = tracing :: field :: debug (id_entries_utilization) , id_entries_initial_utilization = tracing :: field :: debug (id_entries_initial_utilization) , address_entries = tracing :: field :: debug (address_entries) , address_entries_active = tracing :: field :: debug (address_entries_active) , address_entries_active_utilization = tracing :: field :: debug (address_entries_active_utilization) , address_entries_retired = tracing :: field :: debug (address_entries_retired) , address_entries_utilization = tracing :: field :: debug (address_entries_utilization) , address_entries_initial_utilization = tracing :: field :: debug (address_entries_initial_utilization) , handshake_requests = tracing :: field :: debug (handshake_requests) , handshake_requests_retired = tracing :: field :: debug (handshake_requests_retired) , handshake_lock_duration = tracing :: field :: debug (handshake_lock_duration) , duration = tracing :: field :: debug (duration) });
         }
+        #[inline]
+        fn on_path_secret_map_id_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdWriteLock,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapIdWriteLock { acquire, duration } = event;
+            tracing :: event ! (target : "path_secret_map_id_write_lock" , parent : parent , tracing :: Level :: DEBUG , { acquire = tracing :: field :: debug (acquire) , duration = tracing :: field :: debug (duration) });
+        }
+        #[inline]
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressWriteLock,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapAddressWriteLock { acquire, duration } = event;
+            tracing :: event ! (target : "path_secret_map_address_write_lock" , parent : parent , tracing :: Level :: DEBUG , { acquire = tracing :: field :: debug (acquire) , duration = tracing :: field :: debug (duration) });
+        }
     }
 }
 pub mod builder {
@@ -3646,6 +3794,72 @@ pub mod builder {
             let AcceptorTcpIoError { error } = self;
             api::AcceptorTcpIoError {
                 error: error.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when the TCP stream has been sent over a Unix domain socket"]
+    pub struct AcceptorTcpSocketSent<'a> {
+        #[doc = " The credential ID of the stream"]
+        pub credential_id: &'a [u8],
+        #[doc = " The ID of the stream"]
+        pub stream_id: u64,
+        #[doc = " The amount of time the TCP stream spent in the queue before being sent over Unix domain socket"]
+        pub sojourn_time: core::time::Duration,
+        #[doc = " The number of times the Unix domain socket was blocked on send"]
+        pub blocked_count: usize,
+        #[doc = " The len of the payload sent over the Unix domain socket"]
+        pub payload_len: usize,
+    }
+    impl<'a> IntoEvent<api::AcceptorTcpSocketSent<'a>> for AcceptorTcpSocketSent<'a> {
+        #[inline]
+        fn into_event(self) -> api::AcceptorTcpSocketSent<'a> {
+            let AcceptorTcpSocketSent {
+                credential_id,
+                stream_id,
+                sojourn_time,
+                blocked_count,
+                payload_len,
+            } = self;
+            api::AcceptorTcpSocketSent {
+                credential_id: credential_id.into_event(),
+                stream_id: stream_id.into_event(),
+                sojourn_time: sojourn_time.into_event(),
+                blocked_count: blocked_count.into_event(),
+                payload_len: payload_len.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[doc = " Emitted when a TCP stream has been received from a Unix domain socket"]
+    pub struct AcceptorTcpSocketReceived<'a> {
+        #[doc = " The address of the stream's peer"]
+        pub remote_address: &'a s2n_quic_core::inet::SocketAddress,
+        #[doc = " The credential ID of the stream"]
+        pub credential_id: &'a [u8],
+        #[doc = " The ID of the stream"]
+        pub stream_id: u64,
+        #[doc = " The amount of time taken from socket send to socket receive, including waiting if the kernel queue is full"]
+        pub transfer_time: core::time::Duration,
+        #[doc = " The len of the payload sent over the Unix domain socket"]
+        pub payload_len: usize,
+    }
+    impl<'a> IntoEvent<api::AcceptorTcpSocketReceived<'a>> for AcceptorTcpSocketReceived<'a> {
+        #[inline]
+        fn into_event(self) -> api::AcceptorTcpSocketReceived<'a> {
+            let AcceptorTcpSocketReceived {
+                remote_address,
+                credential_id,
+                stream_id,
+                transfer_time,
+                payload_len,
+            } = self;
+            api::AcceptorTcpSocketReceived {
+                remote_address: remote_address.into_event(),
+                credential_id: credential_id.into_event(),
+                stream_id: stream_id.into_event(),
+                transfer_time: transfer_time.into_event(),
+                payload_len: payload_len.into_event(),
             }
         }
     }
@@ -5487,6 +5701,36 @@ pub mod builder {
             }
         }
     }
+    #[derive(Clone, Debug)]
+    pub struct PathSecretMapIdWriteLock {
+        pub acquire: core::time::Duration,
+        pub duration: core::time::Duration,
+    }
+    impl IntoEvent<api::PathSecretMapIdWriteLock> for PathSecretMapIdWriteLock {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapIdWriteLock {
+            let PathSecretMapIdWriteLock { acquire, duration } = self;
+            api::PathSecretMapIdWriteLock {
+                acquire: acquire.into_event(),
+                duration: duration.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct PathSecretMapAddressWriteLock {
+        pub acquire: core::time::Duration,
+        pub duration: core::time::Duration,
+    }
+    impl IntoEvent<api::PathSecretMapAddressWriteLock> for PathSecretMapAddressWriteLock {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapAddressWriteLock {
+            let PathSecretMapAddressWriteLock { acquire, duration } = self;
+            api::PathSecretMapAddressWriteLock {
+                acquire: acquire.into_event(),
+                duration: duration.into_event(),
+            }
+        }
+    }
 }
 pub use traits::*;
 mod traits {
@@ -5641,6 +5885,26 @@ mod traits {
             &self,
             meta: &api::EndpointMeta,
             event: &api::AcceptorTcpIoError,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `AcceptorTcpSocketSent` event is triggered"]
+        #[inline]
+        fn on_acceptor_tcp_socket_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketSent,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `AcceptorTcpSocketReceived` event is triggered"]
+        #[inline]
+        fn on_acceptor_tcp_socket_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketReceived,
         ) {
             let _ = meta;
             let _ = event;
@@ -6447,6 +6711,26 @@ mod traits {
             let _ = meta;
             let _ = event;
         }
+        #[doc = "Called when the `PathSecretMapIdWriteLock` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_id_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdWriteLock,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        #[doc = "Called when the `PathSecretMapAddressWriteLock` event is triggered"]
+        #[inline]
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressWriteLock,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
         #[doc = r" Called for each event that relates to the endpoint and all connections"]
         #[inline]
         fn on_event<M: Meta, E: Event>(&self, meta: &M, event: &E) {
@@ -6565,6 +6849,22 @@ mod traits {
             event: &api::AcceptorTcpIoError,
         ) {
             self.as_ref().on_acceptor_tcp_io_error(meta, event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketSent,
+        ) {
+            self.as_ref().on_acceptor_tcp_socket_sent(meta, event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketReceived,
+        ) {
+            self.as_ref().on_acceptor_tcp_socket_received(meta, event);
         }
         #[inline]
         fn on_acceptor_udp_started(
@@ -7221,6 +7521,23 @@ mod traits {
             self.as_ref().on_path_secret_map_cleaner_cycled(meta, event);
         }
         #[inline]
+        fn on_path_secret_map_id_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdWriteLock,
+        ) {
+            self.as_ref().on_path_secret_map_id_write_lock(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressWriteLock,
+        ) {
+            self.as_ref()
+                .on_path_secret_map_address_write_lock(meta, event);
+        }
+        #[inline]
         fn on_event<M: Meta, E: Event>(&self, meta: &M, event: &E) {
             self.as_ref().on_event(meta, event);
         }
@@ -7342,6 +7659,24 @@ mod traits {
         ) {
             (self.0).on_acceptor_tcp_io_error(meta, event);
             (self.1).on_acceptor_tcp_io_error(meta, event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketSent,
+        ) {
+            (self.0).on_acceptor_tcp_socket_sent(meta, event);
+            (self.1).on_acceptor_tcp_socket_sent(meta, event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketReceived,
+        ) {
+            (self.0).on_acceptor_tcp_socket_received(meta, event);
+            (self.1).on_acceptor_tcp_socket_received(meta, event);
         }
         #[inline]
         fn on_acceptor_udp_started(
@@ -8039,6 +8374,24 @@ mod traits {
             (self.1).on_path_secret_map_cleaner_cycled(meta, event);
         }
         #[inline]
+        fn on_path_secret_map_id_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdWriteLock,
+        ) {
+            (self.0).on_path_secret_map_id_write_lock(meta, event);
+            (self.1).on_path_secret_map_id_write_lock(meta, event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressWriteLock,
+        ) {
+            (self.0).on_path_secret_map_address_write_lock(meta, event);
+            (self.1).on_path_secret_map_address_write_lock(meta, event);
+        }
+        #[inline]
         fn on_event<M: Meta, E: Event>(&self, meta: &M, event: &E) {
             self.0.on_event(meta, event);
             self.1.on_event(meta, event);
@@ -8091,6 +8444,10 @@ mod traits {
         fn on_acceptor_tcp_stream_enqueued(&self, event: builder::AcceptorTcpStreamEnqueued);
         #[doc = "Publishes a `AcceptorTcpIoError` event to the publisher's subscriber"]
         fn on_acceptor_tcp_io_error(&self, event: builder::AcceptorTcpIoError);
+        #[doc = "Publishes a `AcceptorTcpSocketSent` event to the publisher's subscriber"]
+        fn on_acceptor_tcp_socket_sent(&self, event: builder::AcceptorTcpSocketSent);
+        #[doc = "Publishes a `AcceptorTcpSocketReceived` event to the publisher's subscriber"]
+        fn on_acceptor_tcp_socket_received(&self, event: builder::AcceptorTcpSocketReceived);
         #[doc = "Publishes a `AcceptorUdpStarted` event to the publisher's subscriber"]
         fn on_acceptor_udp_started(&self, event: builder::AcceptorUdpStarted);
         #[doc = "Publishes a `AcceptorUdpDatagramReceived` event to the publisher's subscriber"]
@@ -8207,6 +8564,13 @@ mod traits {
         );
         #[doc = "Publishes a `PathSecretMapCleanerCycled` event to the publisher's subscriber"]
         fn on_path_secret_map_cleaner_cycled(&self, event: builder::PathSecretMapCleanerCycled);
+        #[doc = "Publishes a `PathSecretMapIdWriteLock` event to the publisher's subscriber"]
+        fn on_path_secret_map_id_write_lock(&self, event: builder::PathSecretMapIdWriteLock);
+        #[doc = "Publishes a `PathSecretMapAddressWriteLock` event to the publisher's subscriber"]
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            event: builder::PathSecretMapAddressWriteLock,
+        );
         #[doc = r" Returns the QUIC version, if any"]
         fn quic_version(&self) -> Option<u32>;
     }
@@ -8310,6 +8674,20 @@ mod traits {
         fn on_acceptor_tcp_io_error(&self, event: builder::AcceptorTcpIoError) {
             let event = event.into_event();
             self.subscriber.on_acceptor_tcp_io_error(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_sent(&self, event: builder::AcceptorTcpSocketSent) {
+            let event = event.into_event();
+            self.subscriber
+                .on_acceptor_tcp_socket_sent(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_socket_received(&self, event: builder::AcceptorTcpSocketReceived) {
+            let event = event.into_event();
+            self.subscriber
+                .on_acceptor_tcp_socket_received(&self.meta, &event);
             self.subscriber.on_event(&self.meta, &event);
         }
         #[inline]
@@ -8633,6 +9011,23 @@ mod traits {
             let event = event.into_event();
             self.subscriber
                 .on_path_secret_map_cleaner_cycled(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_id_write_lock(&self, event: builder::PathSecretMapIdWriteLock) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_id_write_lock(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            event: builder::PathSecretMapAddressWriteLock,
+        ) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_address_write_lock(&self.meta, &event);
             self.subscriber.on_event(&self.meta, &event);
         }
         #[inline]
@@ -9075,6 +9470,8 @@ pub mod testing {
             pub acceptor_tcp_packet_dropped: AtomicU64,
             pub acceptor_tcp_stream_enqueued: AtomicU64,
             pub acceptor_tcp_io_error: AtomicU64,
+            pub acceptor_tcp_socket_sent: AtomicU64,
+            pub acceptor_tcp_socket_received: AtomicU64,
             pub acceptor_udp_started: AtomicU64,
             pub acceptor_udp_datagram_received: AtomicU64,
             pub acceptor_udp_packet_received: AtomicU64,
@@ -9118,6 +9515,8 @@ pub mod testing {
             pub path_secret_map_id_cache_accessed: AtomicU64,
             pub path_secret_map_id_cache_accessed_hit: AtomicU64,
             pub path_secret_map_cleaner_cycled: AtomicU64,
+            pub path_secret_map_id_write_lock: AtomicU64,
+            pub path_secret_map_address_write_lock: AtomicU64,
         }
         impl Drop for Subscriber {
             fn drop(&mut self) {
@@ -9159,6 +9558,8 @@ pub mod testing {
                     acceptor_tcp_packet_dropped: AtomicU64::new(0),
                     acceptor_tcp_stream_enqueued: AtomicU64::new(0),
                     acceptor_tcp_io_error: AtomicU64::new(0),
+                    acceptor_tcp_socket_sent: AtomicU64::new(0),
+                    acceptor_tcp_socket_received: AtomicU64::new(0),
                     acceptor_udp_started: AtomicU64::new(0),
                     acceptor_udp_datagram_received: AtomicU64::new(0),
                     acceptor_udp_packet_received: AtomicU64::new(0),
@@ -9202,6 +9603,8 @@ pub mod testing {
                     path_secret_map_id_cache_accessed: AtomicU64::new(0),
                     path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
                     path_secret_map_cleaner_cycled: AtomicU64::new(0),
+                    path_secret_map_id_write_lock: AtomicU64::new(0),
+                    path_secret_map_address_write_lock: AtomicU64::new(0),
                 }
             }
         }
@@ -9326,6 +9729,30 @@ pub mod testing {
                 event: &api::AcceptorTcpIoError,
             ) {
                 self.acceptor_tcp_io_error.fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_acceptor_tcp_socket_sent(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::AcceptorTcpSocketSent,
+            ) {
+                self.acceptor_tcp_socket_sent
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_acceptor_tcp_socket_received(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::AcceptorTcpSocketReceived,
+            ) {
+                self.acceptor_tcp_socket_received
+                    .fetch_add(1, Ordering::Relaxed);
                 let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
                 let event = crate::event::snapshot::Fmt::to_snapshot(event);
                 let out = format!("{meta:?} {event:?}");
@@ -9830,6 +10257,30 @@ pub mod testing {
                 let out = format!("{meta:?} {event:?}");
                 self.output.lock().unwrap().push(out);
             }
+            fn on_path_secret_map_id_write_lock(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapIdWriteLock,
+            ) {
+                self.path_secret_map_id_write_lock
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_path_secret_map_address_write_lock(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapAddressWriteLock,
+            ) {
+                self.path_secret_map_address_write_lock
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
         }
     }
     #[derive(Debug)]
@@ -9846,6 +10297,8 @@ pub mod testing {
         pub acceptor_tcp_packet_dropped: AtomicU64,
         pub acceptor_tcp_stream_enqueued: AtomicU64,
         pub acceptor_tcp_io_error: AtomicU64,
+        pub acceptor_tcp_socket_sent: AtomicU64,
+        pub acceptor_tcp_socket_received: AtomicU64,
         pub acceptor_udp_started: AtomicU64,
         pub acceptor_udp_datagram_received: AtomicU64,
         pub acceptor_udp_packet_received: AtomicU64,
@@ -9921,6 +10374,8 @@ pub mod testing {
         pub path_secret_map_id_cache_accessed: AtomicU64,
         pub path_secret_map_id_cache_accessed_hit: AtomicU64,
         pub path_secret_map_cleaner_cycled: AtomicU64,
+        pub path_secret_map_id_write_lock: AtomicU64,
+        pub path_secret_map_address_write_lock: AtomicU64,
     }
     impl Drop for Subscriber {
         fn drop(&mut self) {
@@ -9962,6 +10417,8 @@ pub mod testing {
                 acceptor_tcp_packet_dropped: AtomicU64::new(0),
                 acceptor_tcp_stream_enqueued: AtomicU64::new(0),
                 acceptor_tcp_io_error: AtomicU64::new(0),
+                acceptor_tcp_socket_sent: AtomicU64::new(0),
+                acceptor_tcp_socket_received: AtomicU64::new(0),
                 acceptor_udp_started: AtomicU64::new(0),
                 acceptor_udp_datagram_received: AtomicU64::new(0),
                 acceptor_udp_packet_received: AtomicU64::new(0),
@@ -10037,6 +10494,8 @@ pub mod testing {
                 path_secret_map_id_cache_accessed: AtomicU64::new(0),
                 path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
                 path_secret_map_cleaner_cycled: AtomicU64::new(0),
+                path_secret_map_id_write_lock: AtomicU64::new(0),
+                path_secret_map_address_write_lock: AtomicU64::new(0),
             }
         }
     }
@@ -10161,6 +10620,30 @@ pub mod testing {
             event: &api::AcceptorTcpIoError,
         ) {
             self.acceptor_tcp_io_error.fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_acceptor_tcp_socket_sent(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketSent,
+        ) {
+            self.acceptor_tcp_socket_sent
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_acceptor_tcp_socket_received(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSocketReceived,
+        ) {
+            self.acceptor_tcp_socket_received
+                .fetch_add(1, Ordering::Relaxed);
             let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
             let event = crate::event::snapshot::Fmt::to_snapshot(event);
             let out = format!("{meta:?} {event:?}");
@@ -11123,6 +11606,30 @@ pub mod testing {
             let out = format!("{meta:?} {event:?}");
             self.output.lock().unwrap().push(out);
         }
+        fn on_path_secret_map_id_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapIdWriteLock,
+        ) {
+            self.path_secret_map_id_write_lock
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapAddressWriteLock,
+        ) {
+            self.path_secret_map_address_write_lock
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
     }
     #[derive(Debug)]
     pub struct Publisher {
@@ -11138,6 +11645,8 @@ pub mod testing {
         pub acceptor_tcp_packet_dropped: AtomicU64,
         pub acceptor_tcp_stream_enqueued: AtomicU64,
         pub acceptor_tcp_io_error: AtomicU64,
+        pub acceptor_tcp_socket_sent: AtomicU64,
+        pub acceptor_tcp_socket_received: AtomicU64,
         pub acceptor_udp_started: AtomicU64,
         pub acceptor_udp_datagram_received: AtomicU64,
         pub acceptor_udp_packet_received: AtomicU64,
@@ -11213,6 +11722,8 @@ pub mod testing {
         pub path_secret_map_id_cache_accessed: AtomicU64,
         pub path_secret_map_id_cache_accessed_hit: AtomicU64,
         pub path_secret_map_cleaner_cycled: AtomicU64,
+        pub path_secret_map_id_write_lock: AtomicU64,
+        pub path_secret_map_address_write_lock: AtomicU64,
     }
     impl Publisher {
         #[doc = r" Creates a publisher with snapshot assertions enabled"]
@@ -11244,6 +11755,8 @@ pub mod testing {
                 acceptor_tcp_packet_dropped: AtomicU64::new(0),
                 acceptor_tcp_stream_enqueued: AtomicU64::new(0),
                 acceptor_tcp_io_error: AtomicU64::new(0),
+                acceptor_tcp_socket_sent: AtomicU64::new(0),
+                acceptor_tcp_socket_received: AtomicU64::new(0),
                 acceptor_udp_started: AtomicU64::new(0),
                 acceptor_udp_datagram_received: AtomicU64::new(0),
                 acceptor_udp_packet_received: AtomicU64::new(0),
@@ -11319,6 +11832,8 @@ pub mod testing {
                 path_secret_map_id_cache_accessed: AtomicU64::new(0),
                 path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
                 path_secret_map_cleaner_cycled: AtomicU64::new(0),
+                path_secret_map_id_write_lock: AtomicU64::new(0),
+                path_secret_map_address_write_lock: AtomicU64::new(0),
             }
         }
     }
@@ -11402,6 +11917,22 @@ pub mod testing {
         }
         fn on_acceptor_tcp_io_error(&self, event: builder::AcceptorTcpIoError) {
             self.acceptor_tcp_io_error.fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_acceptor_tcp_socket_sent(&self, event: builder::AcceptorTcpSocketSent) {
+            self.acceptor_tcp_socket_sent
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_acceptor_tcp_socket_received(&self, event: builder::AcceptorTcpSocketReceived) {
+            self.acceptor_tcp_socket_received
+                .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             let event = crate::event::snapshot::Fmt::to_snapshot(&event);
             let out = format!("{event:?}");
@@ -11766,6 +12297,25 @@ pub mod testing {
         }
         fn on_path_secret_map_cleaner_cycled(&self, event: builder::PathSecretMapCleanerCycled) {
             self.path_secret_map_cleaner_cycled
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_id_write_lock(&self, event: builder::PathSecretMapIdWriteLock) {
+            self.path_secret_map_id_write_lock
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_address_write_lock(
+            &self,
+            event: builder::PathSecretMapAddressWriteLock,
+        ) {
+            self.path_secret_map_address_write_lock
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             let event = crate::event::snapshot::Fmt::to_snapshot(&event);

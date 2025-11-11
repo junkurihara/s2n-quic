@@ -156,6 +156,10 @@ impl Entry {
         self.secret.id()
     }
 
+    pub fn secret(&self) -> &schedule::Secret {
+        &self.secret
+    }
+
     pub fn set_accessed_id(&self) {
         self.accessed.fetch_or(0b10, Ordering::Relaxed);
     }
@@ -296,6 +300,11 @@ impl Entry {
     pub fn application_data(&self) -> &Option<ApplicationData> {
         &self.application_data
     }
+
+    #[cfg(test)]
+    pub fn reset_sender_counter(&self) {
+        self.sender.reset_counter();
+    }
 }
 
 impl receiver::Error {
@@ -340,7 +349,12 @@ pub struct ApplicationPair {
 }
 
 impl ApplicationPair {
-    fn new(secret: &schedule::Secret, key_id: VarInt, initiator: Initiator, dedup: Dedup) -> Self {
+    pub fn new(
+        secret: &schedule::Secret,
+        key_id: VarInt,
+        initiator: Initiator,
+        dedup: Dedup,
+    ) -> Self {
         let (sealer, sealer_ku, opener, opener_ku) = secret.application_pair(key_id, initiator);
 
         let sealer = seal::Application::new(sealer, sealer_ku);

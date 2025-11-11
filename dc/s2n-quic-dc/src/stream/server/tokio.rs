@@ -30,10 +30,11 @@ use tracing::{trace, Instrument as _};
 //
 // With UDP there's ~no lock contention for receiving packets on separate UDP sockets,
 // so we don't clamp concurrency in that case.
-const MAX_TCP_WORKERS: usize = 4;
+pub const MAX_TCP_WORKERS: usize = 4;
 
 pub mod tcp;
 pub mod udp;
+pub mod uds;
 
 // This trait is a solution to abstract local_addr and map methods
 pub trait Handshake: Clone {
@@ -112,7 +113,7 @@ impl<H: Handshake + Clone, S: event::Subscriber + Clone> Server<H, S> {
 
 /// Default to the SOMAXCONN, similar to rust:
 /// https://github.com/rust-lang/rust/blob/28a58f2fa7f0c46b8fab8237c02471a915924fe5/library/std/src/os/unix/net/listener.rs#L104
-const DEFAULT_BACKLOG: u16 = libc::SOMAXCONN as _;
+pub const DEFAULT_BACKLOG: u16 = libc::SOMAXCONN as _;
 
 pub struct Builder {
     backlog: Option<NonZeroU16>,
@@ -147,77 +148,87 @@ impl Default for Builder {
     }
 }
 
-impl Builder {
-    pub fn with_address(mut self, addr: SocketAddr) -> Self {
-        self.acceptor_addr = addr;
-        self
-    }
-
-    pub fn with_backlog(mut self, backlog: NonZeroU16) -> Self {
-        self.backlog = Some(backlog);
-        self
-    }
-
-    pub fn with_workers(mut self, workers: NonZeroUsize) -> Self {
-        self.workers = Some(workers.into());
-        self
-    }
-
-    pub fn with_protocol(mut self, protocol: socket::Protocol) -> Self {
-        match protocol {
-            socket::Protocol::Udp => {
-                self.enable_udp = true;
-                self.enable_tcp = false
+macro_rules! common_builder_methods {
+    () => {
+        pub fn with_protocol(mut self, protocol: socket::Protocol) -> Self {
+            match protocol {
+                socket::Protocol::Udp => {
+                    self.enable_udp = true;
+                    self.enable_tcp = false
+                }
+                socket::Protocol::Tcp => {
+                    self.enable_udp = false;
+                    self.enable_tcp = true;
+                }
+                _ => {
+                    self.enable_udp = false;
+                    self.enable_tcp = false;
+                }
             }
-            socket::Protocol::Tcp => {
-                self.enable_udp = false;
-                self.enable_tcp = true;
-            }
-            _ => {
-                self.enable_udp = false;
-                self.enable_tcp = false;
-            }
+            self
         }
-        self
-    }
 
-    pub fn with_udp(mut self, enabled: bool) -> Self {
-        self.enable_udp = enabled;
-        self
-    }
+        pub fn with_udp(mut self, enabled: bool) -> Self {
+            self.enable_udp = enabled;
+            self
+        }
 
-    pub fn with_tcp(mut self, enabled: bool) -> Self {
-        self.enable_tcp = enabled;
-        self
-    }
+        pub fn with_tcp(mut self, enabled: bool) -> Self {
+            self.enable_tcp = enabled;
+            self
+        }
+    };
+}
+macro_rules! manager_builder_methods {
+    () => {
+        pub fn with_address(mut self, addr: SocketAddr) -> Self {
+            self.acceptor_addr = addr;
+            self
+        }
 
-    pub fn with_linger(mut self, linger: Duration) -> Self {
-        self.linger = Some(linger);
-        self
-    }
+        pub fn with_backlog(mut self, backlog: NonZeroU16) -> Self {
+            self.backlog = Some(backlog);
+            self
+        }
 
-    pub fn with_send_buffer(mut self, bytes: usize) -> Self {
-        self.send_buffer = Some(bytes);
-        self
-    }
+        pub fn with_workers(mut self, workers: NonZeroUsize) -> Self {
+            self.workers = Some(workers.into());
+            self
+        }
 
-    pub fn with_recv_buffer(mut self, bytes: usize) -> Self {
-        self.recv_buffer = Some(bytes);
-        self
-    }
+        pub fn with_linger(mut self, linger: Duration) -> Self {
+            self.linger = Some(linger);
+            self
+        }
 
-    /// Sets the reuse address option for the OS socket handle.
-    ///
-    /// This allows the application to bind to a previously used local address.
-    /// In TCP, this can be useful when a closed socket is in the `TIME_WAIT` state and the application
-    /// would like to reuse that address immediately.
-    /// On Linux packets are routed to the most recently bound socket.
-    ///
-    /// See `SO_REUSEADDR` for more information.
-    pub fn with_reuse_addr(mut self, enabled: bool) -> Self {
-        self.reuse_addr = Some(enabled);
-        self
-    }
+        pub fn with_send_buffer(mut self, bytes: usize) -> Self {
+            self.send_buffer = Some(bytes);
+            self
+        }
+
+        pub fn with_recv_buffer(mut self, bytes: usize) -> Self {
+            self.recv_buffer = Some(bytes);
+            self
+        }
+
+        /// Sets the reuse address option for the OS socket handle.
+        ///
+        /// This allows the application to bind to a previously used local address.
+        /// In TCP, this can be useful when a closed socket is in the `TIME_WAIT` state and the application
+        /// would like to reuse that address immediately.
+        /// On Linux packets are routed to the most recently bound socket.
+        ///
+        /// See `SO_REUSEADDR` for more information.
+        pub fn with_reuse_addr(mut self, enabled: bool) -> Self {
+            self.reuse_addr = Some(enabled);
+            self
+        }
+    };
+}
+
+impl Builder {
+    common_builder_methods!();
+    manager_builder_methods!();
 
     pub fn build<H: Handshake + Clone, S: event::Subscriber + Clone>(
         mut self,
@@ -513,17 +524,16 @@ impl<H: Handshake + Clone, S: event::Subscriber + Clone> Start<'_, H, S> {
 
         let socket = tokio::io::unix::AsyncFd::new(socket)?;
         let id = self.id();
-
+        let channel_behavior = tcp::worker::DefaultBehavior::new(&self.stream_sender);
         let acceptor = tcp::Acceptor::new(
             id,
             socket,
-            &self.stream_sender,
             &self.server.env,
             self.server.handshake.map(),
             self.backlog,
             self.accept_flavor,
             self.linger,
-            tcp::worker::DefaultBehavior,
+            channel_behavior,
         )?
         .run();
 
@@ -544,3 +554,6 @@ impl<H: Handshake + Clone, S: event::Subscriber + Clone> Start<'_, H, S> {
         id
     }
 }
+
+pub(crate) use common_builder_methods;
+pub(crate) use manager_builder_methods;

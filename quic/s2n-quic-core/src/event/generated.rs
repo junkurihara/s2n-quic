@@ -2468,12 +2468,14 @@ pub mod api {
     #[non_exhaustive]
     pub struct TlsHandshakeFailed<'a> {
         pub session: crate::event::TlsSession<'a>,
+        pub error: &'a (dyn core::error::Error + Send + Sync + 'static),
     }
     #[cfg(any(test, feature = "testing"))]
     impl<'a> crate::event::snapshot::Fmt for TlsHandshakeFailed<'a> {
         fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
             let mut fmt = fmt.debug_struct("TlsHandshakeFailed");
             fmt.field("session", &self.session);
+            fmt.field("error", &self.error);
             fmt.finish()
         }
     }
@@ -4132,8 +4134,8 @@ pub mod tracing {
             event: &api::TlsHandshakeFailed,
         ) {
             let id = context.id();
-            let api::TlsHandshakeFailed { session } = event;
-            tracing :: event ! (target : "tls_handshake_failed" , parent : id , tracing :: Level :: DEBUG , { session = tracing :: field :: debug (session) });
+            let api::TlsHandshakeFailed { session, error } = event;
+            tracing :: event ! (target : "tls_handshake_failed" , parent : id , tracing :: Level :: DEBUG , { session = tracing :: field :: debug (session) , error = tracing :: field :: debug (error) });
         }
         #[inline]
         fn on_path_challenge_updated(
@@ -6300,13 +6302,15 @@ pub mod builder {
     #[derive(Clone, Debug)]
     pub struct TlsHandshakeFailed<'a> {
         pub session: crate::event::TlsSession<'a>,
+        pub error: &'a (dyn core::error::Error + Send + Sync + 'static),
     }
     impl<'a> IntoEvent<api::TlsHandshakeFailed<'a>> for TlsHandshakeFailed<'a> {
         #[inline]
         fn into_event(self) -> api::TlsHandshakeFailed<'a> {
-            let TlsHandshakeFailed { session } = self;
+            let TlsHandshakeFailed { session, error } = self;
             api::TlsHandshakeFailed {
                 session: session.into_event(),
+                error: error.into_event(),
             }
         }
     }
@@ -6917,19 +6921,15 @@ pub mod supervisor {
         event::{builder::SocketAddress, IntoEvent},
     };
     #[non_exhaustive]
-    #[derive(Clone, Debug, Eq, PartialEq)]
+    #[derive(Clone, Debug, Default, Eq, PartialEq)]
     pub enum Outcome {
         #[doc = r" Allow the connection to remain open"]
+        #[default]
         Continue,
         #[doc = r" Close the connection and notify the peer"]
         Close { error_code: application::Error },
         #[doc = r" Close the connection without notifying the peer"]
         ImmediateClose { reason: &'static str },
-    }
-    impl Default for Outcome {
-        fn default() -> Self {
-            Self::Continue
-        }
     }
     #[non_exhaustive]
     #[derive(Debug)]
