@@ -19,7 +19,18 @@ struct EndpointMeta {
     timestamp: crate::event::Timestamp,
 }
 
-struct ConnectionInfo {}
+struct ConnectionInfo<'a> {
+    application: Option<&'a (dyn core::any::Any + Send + Sync)>,
+}
+
+impl<'a> IntoEvent<&'a (dyn core::any::Any + Send + Sync)>
+    for &'a (dyn core::any::Any + Send + Sync)
+{
+    #[inline]
+    fn into_event(self) -> Self {
+        self
+    }
+}
 
 // https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#5.3.3
 struct TransportParameters<'a> {
@@ -41,6 +52,7 @@ struct TransportParameters<'a> {
     initial_max_streams_uni: u64,
     max_datagram_frame_size: u64,
     dc_supported_versions: &'a [u32],
+    mtu_probing_complete_support: bool,
 }
 
 struct PreferredAddress<'a> {
@@ -369,6 +381,9 @@ enum Frame {
         len: u16,
     },
     DcStatelessResetTokens,
+    MtuProbingComplete {
+        mtu: u16,
+    },
 }
 
 impl IntoEvent<builder::Frame> for &crate::frame::Padding {
