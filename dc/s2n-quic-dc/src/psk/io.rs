@@ -3,6 +3,7 @@
 
 use super::{client, server};
 use crate::path::secret;
+use cfg_if::cfg_if;
 use rand::Rng;
 use s2n_quic::{
     provider::{
@@ -83,27 +84,29 @@ impl Server {
 
         let event = ((ConfirmComplete, MtuConfirmComplete), subscriber);
 
-        #[cfg(not(any(test, feature = "testing")))]
-        let server = server
-            .with_limits(connection_limits)?
-            .with_dc(map.clone())?
-            .with_event(event)?
-            .with_tls(tls_materials_provider)?
-            .start()?;
-
-        #[cfg(any(test, feature = "testing"))]
-        let server = {
-            let server = server
-                .with_limits(connection_limits)?
-                .with_dc(map.clone())?
-                .with_event(event)?
-                .with_tls(tls_materials_provider)?;
-            if let Some(limiter) = builder.endpoint_limits {
-                server.with_endpoint_limits(limiter)?.start()?
+        cfg_if!(
+            if #[cfg(any(test, feature = "testing"))] {
+                let server = {
+                    let server = server
+                        .with_limits(connection_limits)?
+                        .with_dc(map.clone())?
+                        .with_event(event)?
+                        .with_tls(tls_materials_provider)?;
+                    if let Some(limiter) = builder.endpoint_limits {
+                        server.with_endpoint_limits(limiter)?.start()?
+                    } else {
+                        server.start()?
+                    }
+                };
             } else {
-                server.start()?
+                let server = server
+                    .with_limits(connection_limits)?
+                    .with_dc(map.clone())?
+                    .with_event(event)?
+                    .with_tls(tls_materials_provider)?
+                    .start()?;
             }
-        };
+        );
 
         Ok(Self { server })
     }
@@ -306,32 +309,27 @@ impl HandshakeQueue {
         let peer_hash = self.hasher.hash_one(peer);
         let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let inner = &mut *guard;
-        match inner.table.entry(
+        let entry = match inner.table.entry(
             peer_hash,
             |e| e.peer == peer,
             |e| self.hasher.hash_one(e.peer),
         ) {
-            hashbrown::hash_table::Entry::Occupied(o) => {
-                let entry = o.get().clone();
-                entry.by_reason[reason as usize]
-                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| {
-                        Some(v.saturating_add(1))
-                    })
-                    .expect("Some means always OK");
-                entry
-            }
-            hashbrown::hash_table::Entry::Vacant(v) => {
-                let entry = v
-                    .insert(Arc::new(Entry {
-                        peer,
-                        handshaker: tokio::sync::OnceCell::new(),
-                        by_reason: [const { AtomicU16::new(0) }; REASON_COUNT],
-                    }))
-                    .get()
-                    .clone();
-                entry
-            }
-        }
+            hashbrown::hash_table::Entry::Occupied(o) => o.get().clone(),
+            hashbrown::hash_table::Entry::Vacant(v) => v
+                .insert(Arc::new(Entry {
+                    peer,
+                    handshaker: tokio::sync::OnceCell::new(),
+                    by_reason: [const { AtomicU16::new(0) }; REASON_COUNT],
+                }))
+                .get()
+                .clone(),
+        };
+        entry.by_reason[reason as usize]
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| {
+                Some(v.saturating_add(1))
+            })
+            .expect("Some means always OK");
+        entry
     }
 
     /// Remove a specific entry from the map. This will *not* remove any newly inserted entry (even
@@ -737,6 +735,33 @@ mod tests {
             duration < Duration::from_millis(500),
             "Connection took {:?}, expected < 500ms",
             duration
+        );
+    }
+
+    #[test]
+    fn alloc_entry_increments() {
+        let queue = HandshakeQueue::new(Duration::ZERO);
+        let peer_a = "127.0.0.1:3333".parse().unwrap();
+        assert_eq!(
+            queue
+                .allocate_entry(peer_a, HandshakeReason::User)
+                .by_reason[HandshakeReason::User as usize]
+                .load(Ordering::Relaxed),
+            1
+        );
+        assert_eq!(
+            queue
+                .allocate_entry(peer_a, HandshakeReason::User)
+                .by_reason[HandshakeReason::User as usize]
+                .load(Ordering::Relaxed),
+            2
+        );
+        assert_eq!(
+            queue
+                .allocate_entry(peer_a, HandshakeReason::Periodic)
+                .by_reason[HandshakeReason::Periodic as usize]
+                .load(Ordering::Relaxed),
+            1
         );
     }
 }

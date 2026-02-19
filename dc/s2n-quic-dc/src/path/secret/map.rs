@@ -16,6 +16,7 @@ use crate::{
 use core::fmt;
 use s2n_quic_core::{dc, time, varint::VarInt};
 use std::{net::SocketAddr, sync::Arc};
+use tokio::task::JoinHandle;
 
 mod cleaner;
 mod entry;
@@ -83,13 +84,15 @@ impl Map {
         C: 'static + time::Clock + Send + Sync,
         S: event::Subscriber,
     {
-        let store = state::State::new(
-            signer,
-            capacity,
-            should_evict_on_unknown_path_secret,
-            clock,
-            subscriber,
-        );
+        let store = state::State::builder()
+            .with_signer(signer)
+            .with_capacity(capacity)
+            .with_evict_on_unknown_path_secret(should_evict_on_unknown_path_secret)
+            .with_clock(clock)
+            .with_subscriber(subscriber)
+            .build()
+            .unwrap();
+
         Self { store }
     }
 
@@ -119,7 +122,7 @@ impl Map {
 
     pub fn register_request_handshake(
         &self,
-        cb: Box<dyn Fn(SocketAddr, HandshakeReason) + Send + Sync>,
+        cb: Box<dyn Fn(SocketAddr, HandshakeReason) -> Option<JoinHandle<()>> + Send + Sync>,
     ) {
         self.store.register_request_handshake(cb);
     }
