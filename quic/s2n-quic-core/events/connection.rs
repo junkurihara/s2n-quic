@@ -43,6 +43,8 @@ struct PacketSent {
     #[measure("bytes", Bytes)]
     #[counter("bytes.total", Bytes)]
     packet_len: usize,
+    #[nominal_counter("transmission_mode")]
+    transmission_mode: TransmissionMode,
 }
 
 #[event("transport:packet_received")]
@@ -51,6 +53,9 @@ struct PacketSent {
 struct PacketReceived {
     #[nominal_counter("kind")]
     packet_header: PacketHeader,
+    #[measure("bytes", Bytes)]
+    #[counter("bytes.total", Bytes)]
+    packet_len: usize,
 }
 
 #[event("connectivity:active_path_updated")]
@@ -441,7 +446,7 @@ struct PacingRateUpdated {
     bytes_per_second: u64,
     #[measure("burst_size", Bytes)]
     burst_size: u32,
-    #[measure("pacing_gain")]
+    #[measure("pacing_gain", Float)]
     pacing_gain: f32,
 }
 

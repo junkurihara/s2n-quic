@@ -318,7 +318,9 @@ impl IntoEvent<builder::EcnCounts> for crate::frame::ack::EcnCounts {
 
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#A.7
 enum Frame {
-    Padding,
+    Padding {
+        len: u16,
+    },
     Ping,
     Ack {
         ecn_counts: Option<EcnCounts>,
@@ -389,7 +391,9 @@ enum Frame {
 impl IntoEvent<builder::Frame> for &crate::frame::Padding {
     #[inline]
     fn into_event(self) -> builder::Frame {
-        builder::Frame::Padding {}
+        builder::Frame::Padding {
+            len: self.length as u16,
+        }
     }
 }
 
@@ -657,6 +661,7 @@ impl IntoEvent<builder::StreamType> for &crate::stream::StreamType {
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#A.2
 //
 //= https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-02#A.4
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum PacketHeader {
     Initial { number: u64, version: u32 },
     Handshake { number: u64, version: u32 },
@@ -1076,4 +1081,28 @@ enum DcState {
     NoVersionNegotiated,
     PathSecretsReady,
     Complete,
+}
+
+/// The mode in which a packet is being transmitted
+enum TransmissionMode {
+    /// Loss recovery probing to detect lost packets
+    LossRecoveryProbing,
+    /// Maximum transmission unit probing to determine the path MTU
+    MtuProbing,
+    /// Path validation to verify peer address reachability
+    PathValidationOnly,
+    /// Normal transmission
+    Normal,
+}
+
+impl IntoEvent<builder::TransmissionMode> for crate::transmission::Mode {
+    #[inline]
+    fn into_event(self) -> builder::TransmissionMode {
+        match self {
+            Self::LossRecoveryProbing => builder::TransmissionMode::LossRecoveryProbing {},
+            Self::MtuProbing => builder::TransmissionMode::MtuProbing {},
+            Self::PathValidationOnly => builder::TransmissionMode::PathValidationOnly {},
+            Self::Normal => builder::TransmissionMode::Normal {},
+        }
+    }
 }

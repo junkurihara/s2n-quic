@@ -358,7 +358,7 @@ pub mod api {
     #[non_exhaustive]
     pub enum Frame {
         #[non_exhaustive]
-        Padding {},
+        Padding { len: u16 },
         #[non_exhaustive]
         Ping {},
         #[non_exhaustive]
@@ -606,8 +606,8 @@ pub mod api {
             }
         }
     }
-    #[derive(Clone, Debug)]
     #[non_exhaustive]
+    #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     pub enum PacketHeader {
         #[non_exhaustive]
         Initial { number: u64, version: u32 },
@@ -1798,6 +1798,56 @@ pub mod api {
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
+    #[doc = " The mode in which a packet is being transmitted"]
+    pub enum TransmissionMode {
+        #[non_exhaustive]
+        #[doc = " Loss recovery probing to detect lost packets"]
+        LossRecoveryProbing {},
+        #[non_exhaustive]
+        #[doc = " Maximum transmission unit probing to determine the path MTU"]
+        MtuProbing {},
+        #[non_exhaustive]
+        #[doc = " Path validation to verify peer address reachability"]
+        PathValidationOnly {},
+        #[non_exhaustive]
+        #[doc = " Normal transmission"]
+        Normal {},
+    }
+    impl aggregate::AsVariant for TransmissionMode {
+        const VARIANTS: &'static [aggregate::info::Variant] = &[
+            aggregate::info::variant::Builder {
+                name: aggregate::info::Str::new("LOSS_RECOVERY_PROBING\0"),
+                id: 0usize,
+            }
+            .build(),
+            aggregate::info::variant::Builder {
+                name: aggregate::info::Str::new("MTU_PROBING\0"),
+                id: 1usize,
+            }
+            .build(),
+            aggregate::info::variant::Builder {
+                name: aggregate::info::Str::new("PATH_VALIDATION_ONLY\0"),
+                id: 2usize,
+            }
+            .build(),
+            aggregate::info::variant::Builder {
+                name: aggregate::info::Str::new("NORMAL\0"),
+                id: 3usize,
+            }
+            .build(),
+        ];
+        #[inline]
+        fn variant_idx(&self) -> usize {
+            match self {
+                Self::LossRecoveryProbing { .. } => 0usize,
+                Self::MtuProbing { .. } => 1usize,
+                Self::PathValidationOnly { .. } => 2usize,
+                Self::Normal { .. } => 3usize,
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
     #[doc = " Application level protocol"]
     pub struct ApplicationProtocolInformation<'a> {
         pub chosen_application_protocol: &'a [u8],
@@ -1882,6 +1932,7 @@ pub mod api {
     pub struct PacketSent {
         pub packet_header: PacketHeader,
         pub packet_len: usize,
+        pub transmission_mode: TransmissionMode,
     }
     #[cfg(any(test, feature = "testing"))]
     impl crate::event::snapshot::Fmt for PacketSent {
@@ -1889,6 +1940,7 @@ pub mod api {
             let mut fmt = fmt.debug_struct("PacketSent");
             fmt.field("packet_header", &self.packet_header);
             fmt.field("packet_len", &self.packet_len);
+            fmt.field("transmission_mode", &self.transmission_mode);
             fmt.finish()
         }
     }
@@ -1900,12 +1952,14 @@ pub mod api {
     #[doc = " Packet was received by a connection"]
     pub struct PacketReceived {
         pub packet_header: PacketHeader,
+        pub packet_len: usize,
     }
     #[cfg(any(test, feature = "testing"))]
     impl crate::event::snapshot::Fmt for PacketReceived {
         fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
             let mut fmt = fmt.debug_struct("PacketReceived");
             fmt.field("packet_header", &self.packet_header);
+            fmt.field("packet_len", &self.packet_len);
             fmt.finish()
         }
     }
@@ -3380,7 +3434,9 @@ pub mod api {
     impl IntoEvent<builder::Frame> for &crate::frame::Padding {
         #[inline]
         fn into_event(self) -> builder::Frame {
-            builder::Frame::Padding {}
+            builder::Frame::Padding {
+                len: self.length as u16,
+            }
         }
     }
     impl IntoEvent<builder::Frame> for &crate::frame::Ping {
@@ -3676,6 +3732,17 @@ pub mod api {
             }
         }
     }
+    impl IntoEvent<builder::TransmissionMode> for crate::transmission::Mode {
+        #[inline]
+        fn into_event(self) -> builder::TransmissionMode {
+            match self {
+                Self::LossRecoveryProbing => builder::TransmissionMode::LossRecoveryProbing {},
+                Self::MtuProbing => builder::TransmissionMode::MtuProbing {},
+                Self::PathValidationOnly => builder::TransmissionMode::PathValidationOnly {},
+                Self::Normal => builder::TransmissionMode::Normal {},
+            }
+        }
+    }
     #[cfg(feature = "std")]
     impl From<PlatformTxError> for std::io::Error {
         fn from(error: PlatformTxError) -> Self {
@@ -3792,8 +3859,9 @@ pub mod tracing {
             let api::PacketSent {
                 packet_header,
                 packet_len,
+                transmission_mode,
             } = event;
-            tracing :: event ! (target : "packet_sent" , parent : id , tracing :: Level :: DEBUG , { packet_header = tracing :: field :: debug (packet_header) , packet_len = tracing :: field :: debug (packet_len) });
+            tracing :: event ! (target : "packet_sent" , parent : id , tracing :: Level :: DEBUG , { packet_header = tracing :: field :: debug (packet_header) , packet_len = tracing :: field :: debug (packet_len) , transmission_mode = tracing :: field :: debug (transmission_mode) });
         }
         #[inline]
         fn on_packet_received(
@@ -3803,8 +3871,11 @@ pub mod tracing {
             event: &api::PacketReceived,
         ) {
             let id = context.id();
-            let api::PacketReceived { packet_header } = event;
-            tracing :: event ! (target : "packet_received" , parent : id , tracing :: Level :: DEBUG , { packet_header = tracing :: field :: debug (packet_header) });
+            let api::PacketReceived {
+                packet_header,
+                packet_len,
+            } = event;
+            tracing :: event ! (target : "packet_received" , parent : id , tracing :: Level :: DEBUG , { packet_header = tracing :: field :: debug (packet_header) , packet_len = tracing :: field :: debug (packet_len) });
         }
         #[inline]
         fn on_active_path_updated(
@@ -4902,7 +4973,9 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub enum Frame {
-        Padding,
+        Padding {
+            len: u16,
+        },
         Ping,
         Ack {
             ecn_counts: Option<EcnCounts>,
@@ -4974,7 +5047,9 @@ pub mod builder {
         fn into_event(self) -> api::Frame {
             use api::Frame::*;
             match self {
-                Self::Padding => Padding {},
+                Self::Padding { len } => Padding {
+                    len: len.into_event(),
+                },
                 Self::Ping => Ping {},
                 Self::Ack {
                     ecn_counts,
@@ -5713,6 +5788,30 @@ pub mod builder {
         }
     }
     #[derive(Clone, Debug)]
+    #[doc = " The mode in which a packet is being transmitted"]
+    pub enum TransmissionMode {
+        #[doc = " Loss recovery probing to detect lost packets"]
+        LossRecoveryProbing,
+        #[doc = " Maximum transmission unit probing to determine the path MTU"]
+        MtuProbing,
+        #[doc = " Path validation to verify peer address reachability"]
+        PathValidationOnly,
+        #[doc = " Normal transmission"]
+        Normal,
+    }
+    impl IntoEvent<api::TransmissionMode> for TransmissionMode {
+        #[inline]
+        fn into_event(self) -> api::TransmissionMode {
+            use api::TransmissionMode::*;
+            match self {
+                Self::LossRecoveryProbing => LossRecoveryProbing {},
+                Self::MtuProbing => MtuProbing {},
+                Self::PathValidationOnly => PathValidationOnly {},
+                Self::Normal => Normal {},
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
     #[doc = " Application level protocol"]
     pub struct ApplicationProtocolInformation<'a> {
         pub chosen_application_protocol: &'a [u8],
@@ -5791,6 +5890,7 @@ pub mod builder {
     pub struct PacketSent {
         pub packet_header: PacketHeader,
         pub packet_len: usize,
+        pub transmission_mode: TransmissionMode,
     }
     impl IntoEvent<api::PacketSent> for PacketSent {
         #[inline]
@@ -5798,10 +5898,12 @@ pub mod builder {
             let PacketSent {
                 packet_header,
                 packet_len,
+                transmission_mode,
             } = self;
             api::PacketSent {
                 packet_header: packet_header.into_event(),
                 packet_len: packet_len.into_event(),
+                transmission_mode: transmission_mode.into_event(),
             }
         }
     }
@@ -5809,13 +5911,18 @@ pub mod builder {
     #[doc = " Packet was received by a connection"]
     pub struct PacketReceived {
         pub packet_header: PacketHeader,
+        pub packet_len: usize,
     }
     impl IntoEvent<api::PacketReceived> for PacketReceived {
         #[inline]
         fn into_event(self) -> api::PacketReceived {
-            let PacketReceived { packet_header } = self;
+            let PacketReceived {
+                packet_header,
+                packet_len,
+            } = self;
             api::PacketReceived {
                 packet_header: packet_header.into_event(),
+                packet_len: packet_len.into_event(),
             }
         }
     }
