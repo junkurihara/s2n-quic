@@ -80,6 +80,7 @@ impl Server {
             // After the connection is established we increase the data window to the configured value
             .with_bidirectional_local_data_window(builder.data_window)?
             .with_bidirectional_remote_data_window(initial_max_data)?
+            .with_pto_jitter_percentage(builder.pto_jitter_percentage)?
             .with_initial_round_trip_time(DEFAULT_INITIAL_RTT)?;
 
         let event = ((ConfirmComplete, MtuConfirmComplete), subscriber);
@@ -90,7 +91,7 @@ impl Server {
                     let server = server
                         .with_limits(connection_limits)?
                         .with_dc(map.clone())?
-                        .with_event(event)?
+                        .with_event((event, builder.event_subscriber))?
                         .with_tls(tls_materials_provider)?;
                     if let Some(limiter) = builder.endpoint_limits {
                         server.with_endpoint_limits(limiter)?.start()?
@@ -102,7 +103,7 @@ impl Server {
                 let server = server
                     .with_limits(connection_limits)?
                     .with_dc(map.clone())?
-                    .with_event(event)?
+                    .with_event((event, builder.event_subscriber))?
                     .with_tls(tls_materials_provider)?
                     .start()?;
             }
@@ -212,6 +213,7 @@ impl Client {
             .with_data_window(builder.data_window)?
             .with_bidirectional_local_data_window(builder.data_window)?
             .with_bidirectional_remote_data_window(builder.data_window)?
+            .with_pto_jitter_percentage(builder.pto_jitter_percentage)?
             .with_initial_round_trip_time(DEFAULT_INITIAL_RTT)?;
 
         let event = ((ConfirmComplete, MtuConfirmComplete), subscriber);
@@ -219,7 +221,7 @@ impl Client {
         let client = client
             .with_limits(connection_limits)?
             .with_dc(map.clone())?
-            .with_event(event)?
+            .with_event((event, builder.event_subscriber))?
             .with_tls(tls_materials_provider)?
             .start()?;
 

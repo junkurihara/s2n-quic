@@ -127,6 +127,14 @@ impl tls::TlsSession for Session {
             .collect::<Result<Vec<Vec<u8>>, s2n_tls::error::Error>>()
             .map_err(|_| tls::ChainError::failure())
     }
+
+    fn client_cert_chain_der(&self) -> Result<Option<Vec<u8>>, tls::ChainError> {
+        Ok(self
+            .connection
+            .client_cert_chain_bytes()
+            .map_err(|_| tls::ChainError::failure())?
+            .map(|v| v.to_owned()))
+    }
 }
 
 impl tls::Session for Session {
@@ -147,7 +155,7 @@ impl tls::Session for Session {
 
         unsafe {
             // Safety: the callback struct must live as long as the callbacks are
-            // set on on the connection
+            // set on the connection
             callback.set(&mut self.connection);
         }
 
@@ -201,7 +209,7 @@ impl tls::Session for Session {
 
         unsafe {
             // Safety: the callback struct must live as long as the callbacks are
-            // set on on the connection
+            // set on the connection
             callback.set(&mut self.connection);
         }
 
