@@ -177,7 +177,11 @@ impl Map {
         queue_id: Option<VarInt>,
         features: &TransportFeatures,
         control_out: &mut Vec<u8>,
-    ) -> Option<(entry::Bidirectional, dc::ApplicationParams)> {
+    ) -> Option<(
+        entry::Bidirectional,
+        dc::ApplicationParams,
+        Option<entry::ApplicationData>,
+    )> {
         let entry = self
             .store
             .pre_authentication(credentials, queue_id, control_out)?;
@@ -185,7 +189,8 @@ impl Map {
         let params = entry.parameters();
         let keys = entry.bidi_remote(self.clone(), credentials, queue_id, features);
 
-        Some((keys, params))
+        let application_data = entry.application_data().clone();
+        Some((keys, params, application_data))
     }
 
     pub fn secret_for_credentials(
@@ -221,6 +226,16 @@ impl Map {
     /// Emits a DcConnectionTimeout event via the subscriber
     pub fn on_dc_connection_timeout(&self, peer_address: &SocketAddr) {
         self.store.on_dc_connection_timeout(peer_address);
+    }
+
+    /// Emits a datagram encrypt event with the wire packet length
+    pub(crate) fn on_datagram_encrypt(&self, packet_len: usize) {
+        self.store.on_datagram_encrypt(packet_len);
+    }
+
+    /// Emits a datagram decrypt event with the wire packet length
+    pub(crate) fn on_datagram_decrypt(&self, packet_len: usize) {
+        self.store.on_datagram_decrypt(packet_len);
     }
 
     pub fn handle_control_packet(&self, packet: &control::Packet, peer: &SocketAddr) {
