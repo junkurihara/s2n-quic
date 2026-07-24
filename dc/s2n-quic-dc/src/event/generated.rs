@@ -266,6 +266,34 @@ pub mod api {
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
+    /// Emitted when a synthetic TLS stream is rejected.
+    ///
+    /// These are TLS streams detected as coming from a synthetic source (e.g., scanner for endpoint
+    /// compliance). Typically failures here are expected at a much higher rate.
+    pub struct AcceptorTcpSyntheticTlsStreamRejected<'a> {
+        /// The address of the packet's sender
+        pub remote_address: SocketAddress<'a>,
+        /// The amount of time the TCP stream spent on handshaking before being rejected
+        /// since being accepted from the kernel
+        pub sojourn_time: core::time::Duration,
+        /// The error encountered
+        pub error: &'a std::io::Error,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl<'a> crate::event::snapshot::Fmt for AcceptorTcpSyntheticTlsStreamRejected<'a> {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("AcceptorTcpSyntheticTlsStreamRejected");
+            fmt.field("remote_address", &self.remote_address);
+            fmt.field("sojourn_time", &self.sojourn_time);
+            fmt.field("error", &self.error);
+            fmt.finish()
+        }
+    }
+    impl<'a> Event for AcceptorTcpSyntheticTlsStreamRejected<'a> {
+        const NAME: &'static str = "acceptor:tcp:tls_synthetic_stream_rejected";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
     /// Emitted when the TCP acceptor received an invalid initial packet
     pub struct AcceptorTcpPacketDropped<'a> {
         /// The address of the packet's sender
@@ -1933,6 +1961,8 @@ pub mod api {
         pub peer_address: SocketAddress<'a>,
         pub new_credential_id: &'a [u8],
         pub previous_credential_id: &'a [u8],
+        /// Time since insertion of the replaced entry
+        pub replaced_age: core::time::Duration,
     }
     #[cfg(any(test, feature = "testing"))]
     impl<'a> crate::event::snapshot::Fmt for PathSecretMapEntryReplaced<'a> {
@@ -1941,6 +1971,7 @@ pub mod api {
             fmt.field("peer_address", &self.peer_address);
             fmt.field("new_credential_id", &"[HIDDEN]");
             fmt.field("previous_credential_id", &"[HIDDEN]");
+            fmt.field("replaced_age", &self.replaced_age);
             fmt.finish()
         }
     }
@@ -1955,6 +1986,8 @@ pub mod api {
         pub credential_id: &'a [u8],
         /// Time since insertion of this entry
         pub age: core::time::Duration,
+        pub time_since_last_accessed: core::time::Duration,
+        pub reason: EvictionReason,
     }
     #[cfg(any(test, feature = "testing"))]
     impl<'a> crate::event::snapshot::Fmt for PathSecretMapIdEntryEvicted<'a> {
@@ -1962,7 +1995,9 @@ pub mod api {
             let mut fmt = fmt.debug_struct("PathSecretMapIdEntryEvicted");
             fmt.field("peer_address", &self.peer_address);
             fmt.field("credential_id", &"[HIDDEN]");
-            fmt.field("age", &self.age);
+            fmt.field("age", &"[HIDDEN]");
+            fmt.field("time_since_last_accessed", &self.time_since_last_accessed);
+            fmt.field("reason", &self.reason);
             fmt.finish()
         }
     }
@@ -1977,6 +2012,8 @@ pub mod api {
         pub credential_id: &'a [u8],
         /// Time since insertion of this entry
         pub age: core::time::Duration,
+        pub time_since_last_accessed: core::time::Duration,
+        pub reason: EvictionReason,
     }
     #[cfg(any(test, feature = "testing"))]
     impl<'a> crate::event::snapshot::Fmt for PathSecretMapAddressEntryEvicted<'a> {
@@ -1985,6 +2022,8 @@ pub mod api {
             fmt.field("peer_address", &self.peer_address);
             fmt.field("credential_id", &"[HIDDEN]");
             fmt.field("age", &self.age);
+            fmt.field("time_since_last_accessed", &self.time_since_last_accessed);
+            fmt.field("reason", &self.reason);
             fmt.finish()
         }
     }
@@ -2035,6 +2074,10 @@ pub mod api {
     pub struct UnknownPathSecretPacketAccepted<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+        /// The age of the entry the peer indicated it doesn't know about.
+        pub age: core::time::Duration,
+        pub evicted: bool,
+        pub scheduled_handshake: bool,
     }
     #[cfg(any(test, feature = "testing"))]
     impl<'a> crate::event::snapshot::Fmt for UnknownPathSecretPacketAccepted<'a> {
@@ -2042,6 +2085,9 @@ pub mod api {
             let mut fmt = fmt.debug_struct("UnknownPathSecretPacketAccepted");
             fmt.field("peer_address", &self.peer_address);
             fmt.field("credential_id", &"[HIDDEN]");
+            fmt.field("age", &"[HIDDEN]");
+            fmt.field("evicted", &self.evicted);
+            fmt.field("scheduled_handshake", &self.scheduled_handshake);
             fmt.finish()
         }
     }
@@ -2463,6 +2509,12 @@ pub mod api {
         pub address_entries_utilization: f32,
         /// The utilization percentage of the available number of address entries before the cycle
         pub address_entries_initial_utilization: f32,
+        /// The number of Path Secret ID entries created within the last rehandshake period (usually 24
+        /// hours)
+        pub id_entries_in_last_hs_period: usize,
+        /// The utilization percentage of Path Secret ID entries created within the last rehandshake
+        /// period (usually 24 hours)
+        pub id_entries_in_last_hs_period_utilization: f32,
         /// The number of handshake requests that are pending after the cleaning cycle
         pub handshake_requests: usize,
         /// The number of handshake requests that were skipped in the cycle due to running out of time
@@ -2505,6 +2557,14 @@ pub mod api {
                 "address_entries_initial_utilization",
                 &self.address_entries_initial_utilization,
             );
+            fmt.field(
+                "id_entries_in_last_hs_period",
+                &self.id_entries_in_last_hs_period,
+            );
+            fmt.field(
+                "id_entries_in_last_hs_period_utilization",
+                &self.id_entries_in_last_hs_period_utilization,
+            );
             fmt.field("handshake_requests", &self.handshake_requests);
             fmt.field(
                 "handshake_requests_skipped",
@@ -2517,6 +2577,33 @@ pub mod api {
     }
     impl Event for PathSecretMapCleanerCycled {
         const NAME: &'static str = "path_secret_map:cleaner_cycled";
+    }
+    #[derive(Clone, Debug)]
+    #[non_exhaustive]
+    /// Emitted when the path secret map is serialized to disk
+    pub struct PathSecretMapSerialized {
+        /// The number of entries written to the serialized file
+        pub entries: usize,
+        /// The size of the serialized file, in bytes
+        pub file_size: usize,
+        /// How long serialization took
+        pub duration: core::time::Duration,
+        /// Whether serialization failed
+        pub error: bool,
+    }
+    #[cfg(any(test, feature = "testing"))]
+    impl crate::event::snapshot::Fmt for PathSecretMapSerialized {
+        fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            let mut fmt = fmt.debug_struct("PathSecretMapSerialized");
+            fmt.field("entries", &self.entries);
+            fmt.field("file_size", &self.file_size);
+            fmt.field("duration", &self.duration);
+            fmt.field("error", &self.error);
+            fmt.finish()
+        }
+    }
+    impl Event for PathSecretMapSerialized {
+        const NAME: &'static str = "path_secret_map:serialized";
     }
     #[derive(Clone, Debug)]
     #[non_exhaustive]
@@ -2589,6 +2676,46 @@ pub mod api {
     }
     impl Event for PathSecretMapDatagramDecrypt {
         const NAME: &'static str = "path_secret_map:datagram_decrypt";
+    }
+    #[non_exhaustive]
+    #[derive(Debug, Copy, Clone)]
+    pub enum EvictionReason {
+        #[non_exhaustive]
+        /// Capacity of map exceeded.
+        Capacity {},
+        #[non_exhaustive]
+        /// UnknownPathSecret received, removing entry.
+        UnknownPathSecret {},
+        #[non_exhaustive]
+        /// A newer entry is replacing this one, so we're retiring these.
+        Retiring {},
+    }
+    impl aggregate::AsVariant for EvictionReason {
+        const VARIANTS: &'static [aggregate::info::Variant] = &[
+            aggregate::info::variant::Builder {
+                name: aggregate::info::Str::new("CAPACITY\0"),
+                id: 0usize,
+            }
+            .build(),
+            aggregate::info::variant::Builder {
+                name: aggregate::info::Str::new("UNKNOWN_PATH_SECRET\0"),
+                id: 1usize,
+            }
+            .build(),
+            aggregate::info::variant::Builder {
+                name: aggregate::info::Str::new("RETIRING\0"),
+                id: 2usize,
+            }
+            .build(),
+        ];
+        #[inline]
+        fn variant_idx(&self) -> usize {
+            match self {
+                Self::Capacity { .. } => 0usize,
+                Self::UnknownPathSecret { .. } => 1usize,
+                Self::Retiring { .. } => 2usize,
+            }
+        }
     }
     impl IntoEvent<builder::AcceptorPacketDropReason> for s2n_codec::DecoderError {
         fn into_event(self) -> builder::AcceptorPacketDropReason {
@@ -2829,6 +2956,26 @@ pub mod tracing {
             } = event;
             tracing::event!(
                 target : "acceptor_tcp_tls_stream_rejected", parent : parent,
+                tracing::Level::DEBUG, { remote_address =
+                tracing::field::debug(remote_address), sojourn_time =
+                tracing::field::debug(sojourn_time), error = tracing::field::debug(error)
+                }
+            );
+        }
+        #[inline]
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSyntheticTlsStreamRejected,
+        ) {
+            let parent = self.parent(meta);
+            let api::AcceptorTcpSyntheticTlsStreamRejected {
+                remote_address,
+                sojourn_time,
+                error,
+            } = event;
+            tracing::event!(
+                target : "acceptor_tcp_synthetic_tls_stream_rejected", parent : parent,
                 tracing::Level::DEBUG, { remote_address =
                 tracing::field::debug(remote_address), sojourn_time =
                 tracing::field::debug(sojourn_time), error = tracing::field::debug(error)
@@ -3903,13 +4050,15 @@ pub mod tracing {
                 peer_address,
                 new_credential_id,
                 previous_credential_id,
+                replaced_age,
             } = event;
             tracing::event!(
                 target : "path_secret_map_entry_replaced", parent : parent,
                 tracing::Level::DEBUG, { peer_address =
                 tracing::field::debug(peer_address), new_credential_id =
                 tracing::field::debug(new_credential_id), previous_credential_id =
-                tracing::field::debug(previous_credential_id) }
+                tracing::field::debug(previous_credential_id), replaced_age =
+                tracing::field::debug(replaced_age) }
             );
         }
         #[inline]
@@ -3923,12 +4072,17 @@ pub mod tracing {
                 peer_address,
                 credential_id,
                 age,
+                time_since_last_accessed,
+                reason,
             } = event;
             tracing::event!(
                 target : "path_secret_map_id_entry_evicted", parent : parent,
                 tracing::Level::DEBUG, { peer_address =
                 tracing::field::debug(peer_address), credential_id =
-                tracing::field::debug(credential_id), age = tracing::field::debug(age) }
+                tracing::field::debug(credential_id), age = tracing::field::debug(age),
+                time_since_last_accessed =
+                tracing::field::debug(time_since_last_accessed), reason =
+                tracing::field::debug(reason) }
             );
         }
         #[inline]
@@ -3942,12 +4096,17 @@ pub mod tracing {
                 peer_address,
                 credential_id,
                 age,
+                time_since_last_accessed,
+                reason,
             } = event;
             tracing::event!(
                 target : "path_secret_map_address_entry_evicted", parent : parent,
                 tracing::Level::DEBUG, { peer_address =
                 tracing::field::debug(peer_address), credential_id =
-                tracing::field::debug(credential_id), age = tracing::field::debug(age) }
+                tracing::field::debug(credential_id), age = tracing::field::debug(age),
+                time_since_last_accessed =
+                tracing::field::debug(time_since_last_accessed), reason =
+                tracing::field::debug(reason) }
             );
         }
         #[inline]
@@ -3996,12 +4155,17 @@ pub mod tracing {
             let api::UnknownPathSecretPacketAccepted {
                 peer_address,
                 credential_id,
+                age,
+                evicted,
+                scheduled_handshake,
             } = event;
             tracing::event!(
                 target : "unknown_path_secret_packet_accepted", parent : parent,
                 tracing::Level::DEBUG, { peer_address =
                 tracing::field::debug(peer_address), credential_id =
-                tracing::field::debug(credential_id) }
+                tracing::field::debug(credential_id), age = tracing::field::debug(age),
+                evicted = tracing::field::debug(evicted), scheduled_handshake =
+                tracing::field::debug(scheduled_handshake) }
             );
         }
         #[inline]
@@ -4350,6 +4514,8 @@ pub mod tracing {
                 address_entries_retired,
                 address_entries_utilization,
                 address_entries_initial_utilization,
+                id_entries_in_last_hs_period,
+                id_entries_in_last_hs_period_utilization,
                 handshake_requests,
                 handshake_requests_skipped,
                 handshake_lock_duration,
@@ -4374,11 +4540,35 @@ pub mod tracing {
                 tracing::field::debug(address_entries_utilization),
                 address_entries_initial_utilization =
                 tracing::field::debug(address_entries_initial_utilization),
+                id_entries_in_last_hs_period =
+                tracing::field::debug(id_entries_in_last_hs_period),
+                id_entries_in_last_hs_period_utilization =
+                tracing::field::debug(id_entries_in_last_hs_period_utilization),
                 handshake_requests = tracing::field::debug(handshake_requests),
                 handshake_requests_skipped =
                 tracing::field::debug(handshake_requests_skipped),
                 handshake_lock_duration = tracing::field::debug(handshake_lock_duration),
                 duration = tracing::field::debug(duration) }
+            );
+        }
+        #[inline]
+        fn on_path_secret_map_serialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapSerialized,
+        ) {
+            let parent = self.parent(meta);
+            let api::PathSecretMapSerialized {
+                entries,
+                file_size,
+                duration,
+                error,
+            } = event;
+            tracing::event!(
+                target : "path_secret_map_serialized", parent : parent,
+                tracing::Level::DEBUG, { entries = tracing::field::debug(entries),
+                file_size = tracing::field::debug(file_size), duration =
+                tracing::field::debug(duration), error = tracing::field::debug(error) }
             );
         }
         #[inline]
@@ -4692,6 +4882,37 @@ pub mod builder {
                 error,
             } = self;
             api::AcceptorTcpTlsStreamRejected {
+                remote_address: remote_address.into_event(),
+                sojourn_time: sojourn_time.into_event(),
+                error: error.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    /// Emitted when a synthetic TLS stream is rejected.
+    ///
+    /// These are TLS streams detected as coming from a synthetic source (e.g., scanner for endpoint
+    /// compliance). Typically failures here are expected at a much higher rate.
+    pub struct AcceptorTcpSyntheticTlsStreamRejected<'a> {
+        /// The address of the packet's sender
+        pub remote_address: &'a s2n_quic_core::inet::SocketAddress,
+        /// The amount of time the TCP stream spent on handshaking before being rejected
+        /// since being accepted from the kernel
+        pub sojourn_time: core::time::Duration,
+        /// The error encountered
+        pub error: &'a std::io::Error,
+    }
+    impl<'a> IntoEvent<api::AcceptorTcpSyntheticTlsStreamRejected<'a>>
+        for AcceptorTcpSyntheticTlsStreamRejected<'a>
+    {
+        #[inline]
+        fn into_event(self) -> api::AcceptorTcpSyntheticTlsStreamRejected<'a> {
+            let AcceptorTcpSyntheticTlsStreamRejected {
+                remote_address,
+                sojourn_time,
+                error,
+            } = self;
+            api::AcceptorTcpSyntheticTlsStreamRejected {
                 remote_address: remote_address.into_event(),
                 sojourn_time: sojourn_time.into_event(),
                 error: error.into_event(),
@@ -6206,6 +6427,8 @@ pub mod builder {
         pub peer_address: SocketAddress<'a>,
         pub new_credential_id: &'a [u8],
         pub previous_credential_id: &'a [u8],
+        /// Time since insertion of the replaced entry
+        pub replaced_age: core::time::Duration,
     }
     impl<'a> IntoEvent<api::PathSecretMapEntryReplaced<'a>> for PathSecretMapEntryReplaced<'a> {
         #[inline]
@@ -6214,11 +6437,13 @@ pub mod builder {
                 peer_address,
                 new_credential_id,
                 previous_credential_id,
+                replaced_age,
             } = self;
             api::PathSecretMapEntryReplaced {
                 peer_address: peer_address.into_event(),
                 new_credential_id: new_credential_id.into_event(),
                 previous_credential_id: previous_credential_id.into_event(),
+                replaced_age: replaced_age.into_event(),
             }
         }
     }
@@ -6229,6 +6454,8 @@ pub mod builder {
         pub credential_id: &'a [u8],
         /// Time since insertion of this entry
         pub age: core::time::Duration,
+        pub time_since_last_accessed: core::time::Duration,
+        pub reason: EvictionReason,
     }
     impl<'a> IntoEvent<api::PathSecretMapIdEntryEvicted<'a>> for PathSecretMapIdEntryEvicted<'a> {
         #[inline]
@@ -6237,11 +6464,15 @@ pub mod builder {
                 peer_address,
                 credential_id,
                 age,
+                time_since_last_accessed,
+                reason,
             } = self;
             api::PathSecretMapIdEntryEvicted {
                 peer_address: peer_address.into_event(),
                 credential_id: credential_id.into_event(),
                 age: age.into_event(),
+                time_since_last_accessed: time_since_last_accessed.into_event(),
+                reason: reason.into_event(),
             }
         }
     }
@@ -6252,6 +6483,8 @@ pub mod builder {
         pub credential_id: &'a [u8],
         /// Time since insertion of this entry
         pub age: core::time::Duration,
+        pub time_since_last_accessed: core::time::Duration,
+        pub reason: EvictionReason,
     }
     impl<'a> IntoEvent<api::PathSecretMapAddressEntryEvicted<'a>>
         for PathSecretMapAddressEntryEvicted<'a>
@@ -6262,11 +6495,15 @@ pub mod builder {
                 peer_address,
                 credential_id,
                 age,
+                time_since_last_accessed,
+                reason,
             } = self;
             api::PathSecretMapAddressEntryEvicted {
                 peer_address: peer_address.into_event(),
                 credential_id: credential_id.into_event(),
                 age: age.into_event(),
+                time_since_last_accessed: time_since_last_accessed.into_event(),
+                reason: reason.into_event(),
             }
         }
     }
@@ -6315,6 +6552,10 @@ pub mod builder {
     pub struct UnknownPathSecretPacketAccepted<'a> {
         pub peer_address: SocketAddress<'a>,
         pub credential_id: &'a [u8],
+        /// The age of the entry the peer indicated it doesn't know about.
+        pub age: core::time::Duration,
+        pub evicted: bool,
+        pub scheduled_handshake: bool,
     }
     impl<'a> IntoEvent<api::UnknownPathSecretPacketAccepted<'a>>
         for UnknownPathSecretPacketAccepted<'a>
@@ -6324,10 +6565,16 @@ pub mod builder {
             let UnknownPathSecretPacketAccepted {
                 peer_address,
                 credential_id,
+                age,
+                evicted,
+                scheduled_handshake,
             } = self;
             api::UnknownPathSecretPacketAccepted {
                 peer_address: peer_address.into_event(),
                 credential_id: credential_id.into_event(),
+                age: age.into_event(),
+                evicted: evicted.into_event(),
+                scheduled_handshake: scheduled_handshake.into_event(),
             }
         }
     }
@@ -6745,6 +6992,12 @@ pub mod builder {
         pub address_entries_utilization: f32,
         /// The utilization percentage of the available number of address entries before the cycle
         pub address_entries_initial_utilization: f32,
+        /// The number of Path Secret ID entries created within the last rehandshake period (usually 24
+        /// hours)
+        pub id_entries_in_last_hs_period: usize,
+        /// The utilization percentage of Path Secret ID entries created within the last rehandshake
+        /// period (usually 24 hours)
+        pub id_entries_in_last_hs_period_utilization: f32,
         /// The number of handshake requests that are pending after the cleaning cycle
         pub handshake_requests: usize,
         /// The number of handshake requests that were skipped in the cycle due to running out of time
@@ -6772,6 +7025,8 @@ pub mod builder {
                 address_entries_retired,
                 address_entries_utilization,
                 address_entries_initial_utilization,
+                id_entries_in_last_hs_period,
+                id_entries_in_last_hs_period_utilization,
                 handshake_requests,
                 handshake_requests_skipped,
                 handshake_lock_duration,
@@ -6791,10 +7046,42 @@ pub mod builder {
                 address_entries_utilization: address_entries_utilization.into_event(),
                 address_entries_initial_utilization: address_entries_initial_utilization
                     .into_event(),
+                id_entries_in_last_hs_period: id_entries_in_last_hs_period.into_event(),
+                id_entries_in_last_hs_period_utilization: id_entries_in_last_hs_period_utilization
+                    .into_event(),
                 handshake_requests: handshake_requests.into_event(),
                 handshake_requests_skipped: handshake_requests_skipped.into_event(),
                 handshake_lock_duration: handshake_lock_duration.into_event(),
                 duration: duration.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    /// Emitted when the path secret map is serialized to disk
+    pub struct PathSecretMapSerialized {
+        /// The number of entries written to the serialized file
+        pub entries: usize,
+        /// The size of the serialized file, in bytes
+        pub file_size: usize,
+        /// How long serialization took
+        pub duration: core::time::Duration,
+        /// Whether serialization failed
+        pub error: bool,
+    }
+    impl IntoEvent<api::PathSecretMapSerialized> for PathSecretMapSerialized {
+        #[inline]
+        fn into_event(self) -> api::PathSecretMapSerialized {
+            let PathSecretMapSerialized {
+                entries,
+                file_size,
+                duration,
+                error,
+            } = self;
+            api::PathSecretMapSerialized {
+                entries: entries.into_event(),
+                file_size: file_size.into_event(),
+                duration: duration.into_event(),
+                error: error.into_event(),
             }
         }
     }
@@ -6855,6 +7142,26 @@ pub mod builder {
             let PathSecretMapDatagramDecrypt { packet_len } = self;
             api::PathSecretMapDatagramDecrypt {
                 packet_len: packet_len.into_event(),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub enum EvictionReason {
+        /// Capacity of map exceeded.
+        Capacity,
+        /// UnknownPathSecret received, removing entry.
+        UnknownPathSecret,
+        /// A newer entry is replacing this one, so we're retiring these.
+        Retiring,
+    }
+    impl IntoEvent<api::EvictionReason> for EvictionReason {
+        #[inline]
+        fn into_event(self) -> api::EvictionReason {
+            use api::EvictionReason::*;
+            match self {
+                Self::Capacity => Capacity {},
+                Self::UnknownPathSecret => UnknownPathSecret {},
+                Self::Retiring => Retiring {},
             }
         }
     }
@@ -7012,6 +7319,16 @@ mod traits {
             &self,
             meta: &api::EndpointMeta,
             event: &api::AcceptorTcpTlsStreamRejected,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
+        ///Called when the `AcceptorTcpSyntheticTlsStreamRejected` event is triggered
+        #[inline]
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSyntheticTlsStreamRejected,
         ) {
             let _ = meta;
             let _ = event;
@@ -7896,6 +8213,16 @@ mod traits {
             let _ = meta;
             let _ = event;
         }
+        ///Called when the `PathSecretMapSerialized` event is triggered
+        #[inline]
+        fn on_path_secret_map_serialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapSerialized,
+        ) {
+            let _ = meta;
+            let _ = event;
+        }
         ///Called when the `PathSecretMapIdWriteLock` event is triggered
         #[inline]
         fn on_path_secret_map_id_write_lock(
@@ -8056,6 +8383,15 @@ mod traits {
         ) {
             self.as_ref()
                 .on_acceptor_tcp_tls_stream_rejected(meta, event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSyntheticTlsStreamRejected,
+        ) {
+            self.as_ref()
+                .on_acceptor_tcp_synthetic_tls_stream_rejected(meta, event);
         }
         #[inline]
         fn on_acceptor_tcp_packet_dropped(
@@ -8774,6 +9110,14 @@ mod traits {
             self.as_ref().on_path_secret_map_cleaner_cycled(meta, event);
         }
         #[inline]
+        fn on_path_secret_map_serialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapSerialized,
+        ) {
+            self.as_ref().on_path_secret_map_serialized(meta, event);
+        }
+        #[inline]
         fn on_path_secret_map_id_write_lock(
             &self,
             meta: &api::EndpointMeta,
@@ -8930,6 +9274,15 @@ mod traits {
         ) {
             (self.0).on_acceptor_tcp_tls_stream_rejected(meta, event);
             (self.1).on_acceptor_tcp_tls_stream_rejected(meta, event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSyntheticTlsStreamRejected,
+        ) {
+            (self.0).on_acceptor_tcp_synthetic_tls_stream_rejected(meta, event);
+            (self.1).on_acceptor_tcp_synthetic_tls_stream_rejected(meta, event);
         }
         #[inline]
         fn on_acceptor_tcp_packet_dropped(
@@ -9696,6 +10049,15 @@ mod traits {
             (self.1).on_path_secret_map_cleaner_cycled(meta, event);
         }
         #[inline]
+        fn on_path_secret_map_serialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapSerialized,
+        ) {
+            (self.0).on_path_secret_map_serialized(meta, event);
+            (self.1).on_path_secret_map_serialized(meta, event);
+        }
+        #[inline]
         fn on_path_secret_map_id_write_lock(
             &self,
             meta: &api::EndpointMeta,
@@ -9784,6 +10146,11 @@ mod traits {
         fn on_acceptor_tcp_tls_stream_enqueued(&self, event: builder::AcceptorTcpTlsStreamEnqueued);
         ///Publishes a `AcceptorTcpTlsStreamRejected` event to the publisher's subscriber
         fn on_acceptor_tcp_tls_stream_rejected(&self, event: builder::AcceptorTcpTlsStreamRejected);
+        ///Publishes a `AcceptorTcpSyntheticTlsStreamRejected` event to the publisher's subscriber
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            event: builder::AcceptorTcpSyntheticTlsStreamRejected,
+        );
         ///Publishes a `AcceptorTcpPacketDropped` event to the publisher's subscriber
         fn on_acceptor_tcp_packet_dropped(&self, event: builder::AcceptorTcpPacketDropped);
         ///Publishes a `AcceptorTcpStreamEnqueued` event to the publisher's subscriber
@@ -9914,6 +10281,8 @@ mod traits {
         );
         ///Publishes a `PathSecretMapCleanerCycled` event to the publisher's subscriber
         fn on_path_secret_map_cleaner_cycled(&self, event: builder::PathSecretMapCleanerCycled);
+        ///Publishes a `PathSecretMapSerialized` event to the publisher's subscriber
+        fn on_path_secret_map_serialized(&self, event: builder::PathSecretMapSerialized);
         ///Publishes a `PathSecretMapIdWriteLock` event to the publisher's subscriber
         fn on_path_secret_map_id_write_lock(&self, event: builder::PathSecretMapIdWriteLock);
         ///Publishes a `PathSecretMapAddressWriteLock` event to the publisher's subscriber
@@ -10035,6 +10404,16 @@ mod traits {
             let event = event.into_event();
             self.subscriber
                 .on_acceptor_tcp_tls_stream_rejected(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            event: builder::AcceptorTcpSyntheticTlsStreamRejected,
+        ) {
+            let event = event.into_event();
+            self.subscriber
+                .on_acceptor_tcp_synthetic_tls_stream_rejected(&self.meta, &event);
             self.subscriber.on_event(&self.meta, &event);
         }
         #[inline]
@@ -10404,6 +10783,13 @@ mod traits {
             let event = event.into_event();
             self.subscriber
                 .on_path_secret_map_cleaner_cycled(&self.meta, &event);
+            self.subscriber.on_event(&self.meta, &event);
+        }
+        #[inline]
+        fn on_path_secret_map_serialized(&self, event: builder::PathSecretMapSerialized) {
+            let event = event.into_event();
+            self.subscriber
+                .on_path_secret_map_serialized(&self.meta, &event);
             self.subscriber.on_event(&self.meta, &event);
         }
         #[inline]
@@ -10900,6 +11286,7 @@ pub mod testing {
             pub acceptor_tcp_tls_started: AtomicU64,
             pub acceptor_tcp_tls_stream_enqueued: AtomicU64,
             pub acceptor_tcp_tls_stream_rejected: AtomicU64,
+            pub acceptor_tcp_synthetic_tls_stream_rejected: AtomicU64,
             pub acceptor_tcp_packet_dropped: AtomicU64,
             pub acceptor_tcp_stream_enqueued: AtomicU64,
             pub acceptor_tcp_io_error: AtomicU64,
@@ -10950,6 +11337,7 @@ pub mod testing {
             pub path_secret_map_id_cache_accessed: AtomicU64,
             pub path_secret_map_id_cache_accessed_hit: AtomicU64,
             pub path_secret_map_cleaner_cycled: AtomicU64,
+            pub path_secret_map_serialized: AtomicU64,
             pub path_secret_map_id_write_lock: AtomicU64,
             pub path_secret_map_address_write_lock: AtomicU64,
             pub path_secret_map_datagram_encrypt: AtomicU64,
@@ -10995,6 +11383,7 @@ pub mod testing {
                     acceptor_tcp_tls_started: AtomicU64::new(0),
                     acceptor_tcp_tls_stream_enqueued: AtomicU64::new(0),
                     acceptor_tcp_tls_stream_rejected: AtomicU64::new(0),
+                    acceptor_tcp_synthetic_tls_stream_rejected: AtomicU64::new(0),
                     acceptor_tcp_packet_dropped: AtomicU64::new(0),
                     acceptor_tcp_stream_enqueued: AtomicU64::new(0),
                     acceptor_tcp_io_error: AtomicU64::new(0),
@@ -11045,6 +11434,7 @@ pub mod testing {
                     path_secret_map_id_cache_accessed: AtomicU64::new(0),
                     path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
                     path_secret_map_cleaner_cycled: AtomicU64::new(0),
+                    path_secret_map_serialized: AtomicU64::new(0),
                     path_secret_map_id_write_lock: AtomicU64::new(0),
                     path_secret_map_address_write_lock: AtomicU64::new(0),
                     path_secret_map_datagram_encrypt: AtomicU64::new(0),
@@ -11173,6 +11563,18 @@ pub mod testing {
                 event: &api::AcceptorTcpTlsStreamRejected,
             ) {
                 self.acceptor_tcp_tls_stream_rejected
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
+            fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::AcceptorTcpSyntheticTlsStreamRejected,
+            ) {
+                self.acceptor_tcp_synthetic_tls_stream_rejected
                     .fetch_add(1, Ordering::Relaxed);
                 let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
                 let event = crate::event::snapshot::Fmt::to_snapshot(event);
@@ -11759,6 +12161,18 @@ pub mod testing {
                 let out = format!("{meta:?} {event:?}");
                 self.output.lock().unwrap().push(out);
             }
+            fn on_path_secret_map_serialized(
+                &self,
+                meta: &api::EndpointMeta,
+                event: &api::PathSecretMapSerialized,
+            ) {
+                self.path_secret_map_serialized
+                    .fetch_add(1, Ordering::Relaxed);
+                let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+                let event = crate::event::snapshot::Fmt::to_snapshot(event);
+                let out = format!("{meta:?} {event:?}");
+                self.output.lock().unwrap().push(out);
+            }
             fn on_path_secret_map_id_write_lock(
                 &self,
                 meta: &api::EndpointMeta,
@@ -11823,6 +12237,7 @@ pub mod testing {
         pub acceptor_tcp_tls_started: AtomicU64,
         pub acceptor_tcp_tls_stream_enqueued: AtomicU64,
         pub acceptor_tcp_tls_stream_rejected: AtomicU64,
+        pub acceptor_tcp_synthetic_tls_stream_rejected: AtomicU64,
         pub acceptor_tcp_packet_dropped: AtomicU64,
         pub acceptor_tcp_stream_enqueued: AtomicU64,
         pub acceptor_tcp_io_error: AtomicU64,
@@ -11906,6 +12321,7 @@ pub mod testing {
         pub path_secret_map_id_cache_accessed: AtomicU64,
         pub path_secret_map_id_cache_accessed_hit: AtomicU64,
         pub path_secret_map_cleaner_cycled: AtomicU64,
+        pub path_secret_map_serialized: AtomicU64,
         pub path_secret_map_id_write_lock: AtomicU64,
         pub path_secret_map_address_write_lock: AtomicU64,
         pub path_secret_map_datagram_encrypt: AtomicU64,
@@ -11951,6 +12367,7 @@ pub mod testing {
                 acceptor_tcp_tls_started: AtomicU64::new(0),
                 acceptor_tcp_tls_stream_enqueued: AtomicU64::new(0),
                 acceptor_tcp_tls_stream_rejected: AtomicU64::new(0),
+                acceptor_tcp_synthetic_tls_stream_rejected: AtomicU64::new(0),
                 acceptor_tcp_packet_dropped: AtomicU64::new(0),
                 acceptor_tcp_stream_enqueued: AtomicU64::new(0),
                 acceptor_tcp_io_error: AtomicU64::new(0),
@@ -12034,6 +12451,7 @@ pub mod testing {
                 path_secret_map_id_cache_accessed: AtomicU64::new(0),
                 path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
                 path_secret_map_cleaner_cycled: AtomicU64::new(0),
+                path_secret_map_serialized: AtomicU64::new(0),
                 path_secret_map_id_write_lock: AtomicU64::new(0),
                 path_secret_map_address_write_lock: AtomicU64::new(0),
                 path_secret_map_datagram_encrypt: AtomicU64::new(0),
@@ -12162,6 +12580,18 @@ pub mod testing {
             event: &api::AcceptorTcpTlsStreamRejected,
         ) {
             self.acceptor_tcp_tls_stream_rejected
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::AcceptorTcpSyntheticTlsStreamRejected,
+        ) {
+            self.acceptor_tcp_synthetic_tls_stream_rejected
                 .fetch_add(1, Ordering::Relaxed);
             let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
             let event = crate::event::snapshot::Fmt::to_snapshot(event);
@@ -13217,6 +13647,18 @@ pub mod testing {
             let out = format!("{meta:?} {event:?}");
             self.output.lock().unwrap().push(out);
         }
+        fn on_path_secret_map_serialized(
+            &self,
+            meta: &api::EndpointMeta,
+            event: &api::PathSecretMapSerialized,
+        ) {
+            self.path_secret_map_serialized
+                .fetch_add(1, Ordering::Relaxed);
+            let meta = crate::event::snapshot::Fmt::to_snapshot(meta);
+            let event = crate::event::snapshot::Fmt::to_snapshot(event);
+            let out = format!("{meta:?} {event:?}");
+            self.output.lock().unwrap().push(out);
+        }
         fn on_path_secret_map_id_write_lock(
             &self,
             meta: &api::EndpointMeta,
@@ -13280,6 +13722,7 @@ pub mod testing {
         pub acceptor_tcp_tls_started: AtomicU64,
         pub acceptor_tcp_tls_stream_enqueued: AtomicU64,
         pub acceptor_tcp_tls_stream_rejected: AtomicU64,
+        pub acceptor_tcp_synthetic_tls_stream_rejected: AtomicU64,
         pub acceptor_tcp_packet_dropped: AtomicU64,
         pub acceptor_tcp_stream_enqueued: AtomicU64,
         pub acceptor_tcp_io_error: AtomicU64,
@@ -13363,6 +13806,7 @@ pub mod testing {
         pub path_secret_map_id_cache_accessed: AtomicU64,
         pub path_secret_map_id_cache_accessed_hit: AtomicU64,
         pub path_secret_map_cleaner_cycled: AtomicU64,
+        pub path_secret_map_serialized: AtomicU64,
         pub path_secret_map_id_write_lock: AtomicU64,
         pub path_secret_map_address_write_lock: AtomicU64,
         pub path_secret_map_datagram_encrypt: AtomicU64,
@@ -13398,6 +13842,7 @@ pub mod testing {
                 acceptor_tcp_tls_started: AtomicU64::new(0),
                 acceptor_tcp_tls_stream_enqueued: AtomicU64::new(0),
                 acceptor_tcp_tls_stream_rejected: AtomicU64::new(0),
+                acceptor_tcp_synthetic_tls_stream_rejected: AtomicU64::new(0),
                 acceptor_tcp_packet_dropped: AtomicU64::new(0),
                 acceptor_tcp_stream_enqueued: AtomicU64::new(0),
                 acceptor_tcp_io_error: AtomicU64::new(0),
@@ -13481,6 +13926,7 @@ pub mod testing {
                 path_secret_map_id_cache_accessed: AtomicU64::new(0),
                 path_secret_map_id_cache_accessed_hit: AtomicU64::new(0),
                 path_secret_map_cleaner_cycled: AtomicU64::new(0),
+                path_secret_map_serialized: AtomicU64::new(0),
                 path_secret_map_id_write_lock: AtomicU64::new(0),
                 path_secret_map_address_write_lock: AtomicU64::new(0),
                 path_secret_map_datagram_encrypt: AtomicU64::new(0),
@@ -13574,6 +14020,17 @@ pub mod testing {
             event: builder::AcceptorTcpTlsStreamRejected,
         ) {
             self.acceptor_tcp_tls_stream_rejected
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+            &self,
+            event: builder::AcceptorTcpSyntheticTlsStreamRejected,
+        ) {
+            self.acceptor_tcp_synthetic_tls_stream_rejected
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             let event = crate::event::snapshot::Fmt::to_snapshot(&event);
@@ -13992,6 +14449,14 @@ pub mod testing {
         }
         fn on_path_secret_map_cleaner_cycled(&self, event: builder::PathSecretMapCleanerCycled) {
             self.path_secret_map_cleaner_cycled
+                .fetch_add(1, Ordering::Relaxed);
+            let event = event.into_event();
+            let event = crate::event::snapshot::Fmt::to_snapshot(&event);
+            let out = format!("{event:?}");
+            self.output.lock().unwrap().push(out);
+        }
+        fn on_path_secret_map_serialized(&self, event: builder::PathSecretMapSerialized) {
+            self.path_secret_map_serialized
                 .fetch_add(1, Ordering::Relaxed);
             let event = event.into_event();
             let event = crate::event::snapshot::Fmt::to_snapshot(&event);

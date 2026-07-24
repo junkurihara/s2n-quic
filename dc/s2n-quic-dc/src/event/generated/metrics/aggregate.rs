@@ -46,6 +46,8 @@ mod id {
         ACCEPTOR_TCP_TLS_STREAM_ENQUEUED__SOJOURN_TIME,
         ACCEPTOR_TCP_TLS_STREAM_REJECTED,
         ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME,
+        ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED,
+        ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME,
         ACCEPTOR_TCP_PACKET_DROPPED,
         ACCEPTOR_TCP_PACKET_DROPPED__REASON,
         ACCEPTOR_TCP_PACKET_DROPPED__SOJOURN_TIME,
@@ -259,18 +261,26 @@ mod id {
         PATH_SECRET_MAP_ENTRY_READY__PEER_ADDRESS__PROTOCOL,
         PATH_SECRET_MAP_ENTRY_REPLACED,
         PATH_SECRET_MAP_ENTRY_REPLACED__PEER_ADDRESS__PROTOCOL,
+        PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE,
         PATH_SECRET_MAP_ID_ENTRY_EVICTED,
         PATH_SECRET_MAP_ID_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL,
         PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE,
+        PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+        PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON,
         PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED,
         PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL,
         PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE,
+        PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+        PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON,
         UNKNOWN_PATH_SECRET_PACKET_SENT,
         UNKNOWN_PATH_SECRET_PACKET_SENT__PEER_ADDRESS__PROTOCOL,
         UNKNOWN_PATH_SECRET_PACKET_RECEIVED,
         UNKNOWN_PATH_SECRET_PACKET_RECEIVED__PEER_ADDRESS__PROTOCOL,
         UNKNOWN_PATH_SECRET_PACKET_ACCEPTED,
         UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__PEER_ADDRESS__PROTOCOL,
+        UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE,
+        UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED,
+        UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE,
         UNKNOWN_PATH_SECRET_PACKET_REJECTED,
         UNKNOWN_PATH_SECRET_PACKET_REJECTED__PEER_ADDRESS__PROTOCOL,
         UNKNOWN_PATH_SECRET_PACKET_DROPPED,
@@ -324,10 +334,17 @@ mod id {
         PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__RETIRED,
         PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION,
         PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION__INITIAL,
+        PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD,
+        PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION,
         PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS,
         PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS__SKIPPED,
         PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_LOCK_DURATION,
         PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION,
+        PATH_SECRET_MAP_SERIALIZED,
+        PATH_SECRET_MAP_SERIALIZED__ENTRIES,
+        PATH_SECRET_MAP_SERIALIZED__FILE_SIZE,
+        PATH_SECRET_MAP_SERIALIZED__DURATION,
+        PATH_SECRET_MAP_SERIALIZED__ERROR,
         PATH_SECRET_MAP_ID_WRITE_LOCK,
         PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE,
         PATH_SECRET_MAP_ID_WRITE_LOCK__DURATION,
@@ -392,6 +409,10 @@ mod id {
         InfoId::ACCEPTOR_TCP_TLS_STREAM_REJECTED as usize;
     pub const ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME: usize =
         InfoId::ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME as usize;
+    pub const ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED: usize =
+        InfoId::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED as usize;
+    pub const ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME: usize =
+        InfoId::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME as usize;
     pub const ACCEPTOR_TCP_PACKET_DROPPED: usize = InfoId::ACCEPTOR_TCP_PACKET_DROPPED as usize;
     pub const ACCEPTOR_TCP_PACKET_DROPPED__REASON: usize =
         InfoId::ACCEPTOR_TCP_PACKET_DROPPED__REASON as usize;
@@ -740,18 +761,28 @@ mod id {
         InfoId::PATH_SECRET_MAP_ENTRY_REPLACED as usize;
     pub const PATH_SECRET_MAP_ENTRY_REPLACED__PEER_ADDRESS__PROTOCOL: usize =
         InfoId::PATH_SECRET_MAP_ENTRY_REPLACED__PEER_ADDRESS__PROTOCOL as usize;
+    pub const PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE: usize =
+        InfoId::PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE as usize;
     pub const PATH_SECRET_MAP_ID_ENTRY_EVICTED: usize =
         InfoId::PATH_SECRET_MAP_ID_ENTRY_EVICTED as usize;
     pub const PATH_SECRET_MAP_ID_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL: usize =
         InfoId::PATH_SECRET_MAP_ID_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL as usize;
     pub const PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE: usize =
         InfoId::PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE as usize;
+    pub const PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED: usize =
+        InfoId::PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED as usize;
+    pub const PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON: usize =
+        InfoId::PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON as usize;
     pub const PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED: usize =
         InfoId::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED as usize;
     pub const PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL: usize =
         InfoId::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL as usize;
     pub const PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE: usize =
         InfoId::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE as usize;
+    pub const PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED: usize =
+        InfoId::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED as usize;
+    pub const PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON: usize =
+        InfoId::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON as usize;
     pub const UNKNOWN_PATH_SECRET_PACKET_SENT: usize =
         InfoId::UNKNOWN_PATH_SECRET_PACKET_SENT as usize;
     pub const UNKNOWN_PATH_SECRET_PACKET_SENT__PEER_ADDRESS__PROTOCOL: usize =
@@ -764,6 +795,12 @@ mod id {
         InfoId::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED as usize;
     pub const UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__PEER_ADDRESS__PROTOCOL: usize =
         InfoId::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__PEER_ADDRESS__PROTOCOL as usize;
+    pub const UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE: usize =
+        InfoId::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE as usize;
+    pub const UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED: usize =
+        InfoId::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED as usize;
+    pub const UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE: usize =
+        InfoId::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE as usize;
     pub const UNKNOWN_PATH_SECRET_PACKET_REJECTED: usize =
         InfoId::UNKNOWN_PATH_SECRET_PACKET_REJECTED as usize;
     pub const UNKNOWN_PATH_SECRET_PACKET_REJECTED__PEER_ADDRESS__PROTOCOL: usize =
@@ -859,6 +896,11 @@ mod id {
         InfoId::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION as usize;
     pub const PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION__INITIAL: usize =
         InfoId::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION__INITIAL as usize;
+    pub const PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD: usize =
+        InfoId::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD as usize;
+    pub const PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION: usize =
+        InfoId::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION
+            as usize;
     pub const PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS: usize =
         InfoId::PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS as usize;
     pub const PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS__SKIPPED: usize =
@@ -867,6 +909,15 @@ mod id {
         InfoId::PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_LOCK_DURATION as usize;
     pub const PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION: usize =
         InfoId::PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION as usize;
+    pub const PATH_SECRET_MAP_SERIALIZED: usize = InfoId::PATH_SECRET_MAP_SERIALIZED as usize;
+    pub const PATH_SECRET_MAP_SERIALIZED__ENTRIES: usize =
+        InfoId::PATH_SECRET_MAP_SERIALIZED__ENTRIES as usize;
+    pub const PATH_SECRET_MAP_SERIALIZED__FILE_SIZE: usize =
+        InfoId::PATH_SECRET_MAP_SERIALIZED__FILE_SIZE as usize;
+    pub const PATH_SECRET_MAP_SERIALIZED__DURATION: usize =
+        InfoId::PATH_SECRET_MAP_SERIALIZED__DURATION as usize;
+    pub const PATH_SECRET_MAP_SERIALIZED__ERROR: usize =
+        InfoId::PATH_SECRET_MAP_SERIALIZED__ERROR as usize;
     pub const PATH_SECRET_MAP_ID_WRITE_LOCK: usize = InfoId::PATH_SECRET_MAP_ID_WRITE_LOCK as usize;
     pub const PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE: usize =
         InfoId::PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE as usize;
@@ -903,6 +954,7 @@ mod id {
         COUNTERS_ACCEPTOR_TCP_TLS_STARTED,
         COUNTERS_ACCEPTOR_TCP_TLS_STREAM_ENQUEUED,
         COUNTERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED,
+        COUNTERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED,
         COUNTERS_ACCEPTOR_TCP_PACKET_DROPPED,
         COUNTERS_ACCEPTOR_TCP_STREAM_ENQUEUED,
         COUNTERS_ACCEPTOR_TCP_IO_ERROR,
@@ -998,6 +1050,7 @@ mod id {
         COUNTERS_PATH_SECRET_MAP_ID_CACHE_ACCESSED,
         COUNTERS_PATH_SECRET_MAP_ID_CACHE_ACCESSED_HIT,
         COUNTERS_PATH_SECRET_MAP_CLEANER_CYCLED,
+        COUNTERS_PATH_SECRET_MAP_SERIALIZED,
         COUNTERS_PATH_SECRET_MAP_ID_WRITE_LOCK,
         COUNTERS_PATH_SECRET_MAP_ADDRESS_WRITE_LOCK,
         COUNTERS_PATH_SECRET_MAP_DATAGRAM_ENCRYPT,
@@ -1025,6 +1078,8 @@ mod id {
         Counters::COUNTERS_ACCEPTOR_TCP_TLS_STREAM_ENQUEUED as usize;
     pub const COUNTERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED: usize =
         Counters::COUNTERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED as usize;
+    pub const COUNTERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED: usize =
+        Counters::COUNTERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED as usize;
     pub const COUNTERS_ACCEPTOR_TCP_PACKET_DROPPED: usize =
         Counters::COUNTERS_ACCEPTOR_TCP_PACKET_DROPPED as usize;
     pub const COUNTERS_ACCEPTOR_TCP_STREAM_ENQUEUED: usize =
@@ -1205,6 +1260,8 @@ mod id {
         Counters::COUNTERS_PATH_SECRET_MAP_ID_CACHE_ACCESSED_HIT as usize;
     pub const COUNTERS_PATH_SECRET_MAP_CLEANER_CYCLED: usize =
         Counters::COUNTERS_PATH_SECRET_MAP_CLEANER_CYCLED as usize;
+    pub const COUNTERS_PATH_SECRET_MAP_SERIALIZED: usize =
+        Counters::COUNTERS_PATH_SECRET_MAP_SERIALIZED as usize;
     pub const COUNTERS_PATH_SECRET_MAP_ID_WRITE_LOCK: usize =
         Counters::COUNTERS_PATH_SECRET_MAP_ID_WRITE_LOCK as usize;
     pub const COUNTERS_PATH_SECRET_MAP_ADDRESS_WRITE_LOCK: usize =
@@ -1240,8 +1297,11 @@ mod id {
         BOOL_COUNTERS_STREAM_CONTROL_PACKET_RECEIVED__AUTHENTICATED,
         BOOL_COUNTERS_ENDPOINT_INITIALIZED__TCP,
         BOOL_COUNTERS_ENDPOINT_INITIALIZED__UDP,
+        BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED,
+        BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE,
         BOOL_COUNTERS_PATH_SECRET_MAP_ADDRESS_CACHE_ACCESSED__HIT,
         BOOL_COUNTERS_PATH_SECRET_MAP_ID_CACHE_ACCESSED__HIT,
+        BOOL_COUNTERS_PATH_SECRET_MAP_SERIALIZED__ERROR,
     }
     pub const BOOL_COUNTERS_ACCEPTOR_TCP_PACKET_RECEIVED__IS_FIN: usize =
         BoolCounters::BOOL_COUNTERS_ACCEPTOR_TCP_PACKET_RECEIVED__IS_FIN as usize;
@@ -1283,10 +1343,17 @@ mod id {
         BoolCounters::BOOL_COUNTERS_ENDPOINT_INITIALIZED__TCP as usize;
     pub const BOOL_COUNTERS_ENDPOINT_INITIALIZED__UDP: usize =
         BoolCounters::BOOL_COUNTERS_ENDPOINT_INITIALIZED__UDP as usize;
+    pub const BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED: usize =
+        BoolCounters::BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED as usize;
+    pub const BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE: usize =
+        BoolCounters::BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE
+            as usize;
     pub const BOOL_COUNTERS_PATH_SECRET_MAP_ADDRESS_CACHE_ACCESSED__HIT: usize =
         BoolCounters::BOOL_COUNTERS_PATH_SECRET_MAP_ADDRESS_CACHE_ACCESSED__HIT as usize;
     pub const BOOL_COUNTERS_PATH_SECRET_MAP_ID_CACHE_ACCESSED__HIT: usize =
         BoolCounters::BOOL_COUNTERS_PATH_SECRET_MAP_ID_CACHE_ACCESSED__HIT as usize;
+    pub const BOOL_COUNTERS_PATH_SECRET_MAP_SERIALIZED__ERROR: usize =
+        BoolCounters::BOOL_COUNTERS_PATH_SECRET_MAP_SERIALIZED__ERROR as usize;
     #[allow(non_camel_case_types)]
     #[allow(clippy::upper_case_acronyms)]
     enum NominalCounters {
@@ -1307,7 +1374,9 @@ mod id {
         NOMINAL_COUNTERS_PATH_SECRET_MAP_ENTRY_READY__PEER_ADDRESS__PROTOCOL,
         NOMINAL_COUNTERS_PATH_SECRET_MAP_ENTRY_REPLACED__PEER_ADDRESS__PROTOCOL,
         NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL,
+        NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON,
         NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL,
+        NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON,
         NOMINAL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_SENT__PEER_ADDRESS__PROTOCOL,
         NOMINAL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_RECEIVED__PEER_ADDRESS__PROTOCOL,
         NOMINAL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__PEER_ADDRESS__PROTOCOL,
@@ -1364,8 +1433,12 @@ mod id {
     pub const NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL: usize =
         NominalCounters::NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL
             as usize;
+    pub const NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON: usize =
+        NominalCounters::NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON as usize;
     pub const NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL: usize = NominalCounters::NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL
         as usize;
+    pub const NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON: usize =
+        NominalCounters::NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON as usize;
     pub const NOMINAL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_SENT__PEER_ADDRESS__PROTOCOL: usize =
         NominalCounters::NOMINAL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_SENT__PEER_ADDRESS__PROTOCOL
             as usize;
@@ -1512,8 +1585,12 @@ mod id {
         MEASURES_PATH_SECRET_MAP_UNINITIALIZED__CAPACITY,
         MEASURES_PATH_SECRET_MAP_UNINITIALIZED__ENTRIES,
         MEASURES_PATH_SECRET_MAP_UNINITIALIZED__LIFETIME,
+        MEASURES_PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE,
         MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE,
+        MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
         MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE,
+        MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+        MEASURES_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE,
         MEASURES_KEY_ACCEPTED__GAP,
         MEASURES_KEY_ACCEPTED__FORWARD_SHIFT,
         MEASURES_REPLAY_POTENTIALLY_DETECTED__GAP,
@@ -1531,10 +1608,15 @@ mod id {
         MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__RETIRED,
         MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION,
         MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION__INITIAL,
+        MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD,
+        MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION,
         MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS,
         MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS__SKIPPED,
         MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_LOCK_DURATION,
         MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION,
+        MEASURES_PATH_SECRET_MAP_SERIALIZED__ENTRIES,
+        MEASURES_PATH_SECRET_MAP_SERIALIZED__FILE_SIZE,
+        MEASURES_PATH_SECRET_MAP_SERIALIZED__DURATION,
         MEASURES_PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE,
         MEASURES_PATH_SECRET_MAP_ID_WRITE_LOCK__DURATION,
         MEASURES_PATH_SECRET_MAP_ADDRESS_WRITE_LOCK__ACQUIRE,
@@ -1740,10 +1822,18 @@ mod id {
         Measures::MEASURES_PATH_SECRET_MAP_UNINITIALIZED__ENTRIES as usize;
     pub const MEASURES_PATH_SECRET_MAP_UNINITIALIZED__LIFETIME: usize =
         Measures::MEASURES_PATH_SECRET_MAP_UNINITIALIZED__LIFETIME as usize;
+    pub const MEASURES_PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE: usize =
+        Measures::MEASURES_PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE as usize;
     pub const MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE: usize =
         Measures::MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE as usize;
+    pub const MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED: usize =
+        Measures::MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED as usize;
     pub const MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE: usize =
         Measures::MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE as usize;
+    pub const MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED: usize =
+        Measures::MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED as usize;
+    pub const MEASURES_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE: usize =
+        Measures::MEASURES_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE as usize;
     pub const MEASURES_KEY_ACCEPTED__GAP: usize = Measures::MEASURES_KEY_ACCEPTED__GAP as usize;
     pub const MEASURES_KEY_ACCEPTED__FORWARD_SHIFT: usize =
         Measures::MEASURES_KEY_ACCEPTED__FORWARD_SHIFT as usize;
@@ -1783,6 +1873,10 @@ mod id {
         usize =
         Measures::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION__INITIAL
             as usize;
+    pub const MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD: usize =
+        Measures::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD as usize;
+    pub const MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION: usize = Measures::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION
+        as usize;
     pub const MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS: usize =
         Measures::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS as usize;
     pub const MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS__SKIPPED: usize =
@@ -1791,6 +1885,12 @@ mod id {
         Measures::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_LOCK_DURATION as usize;
     pub const MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION: usize =
         Measures::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION as usize;
+    pub const MEASURES_PATH_SECRET_MAP_SERIALIZED__ENTRIES: usize =
+        Measures::MEASURES_PATH_SECRET_MAP_SERIALIZED__ENTRIES as usize;
+    pub const MEASURES_PATH_SECRET_MAP_SERIALIZED__FILE_SIZE: usize =
+        Measures::MEASURES_PATH_SECRET_MAP_SERIALIZED__FILE_SIZE as usize;
+    pub const MEASURES_PATH_SECRET_MAP_SERIALIZED__DURATION: usize =
+        Measures::MEASURES_PATH_SECRET_MAP_SERIALIZED__DURATION as usize;
     pub const MEASURES_PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE: usize =
         Measures::MEASURES_PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE as usize;
     pub const MEASURES_PATH_SECRET_MAP_ID_WRITE_LOCK__DURATION: usize =
@@ -1812,6 +1912,7 @@ mod id {
         TIMERS_ACCEPTOR_TCP_TLS_STARTED__SOJOURN_TIME,
         TIMERS_ACCEPTOR_TCP_TLS_STREAM_ENQUEUED__SOJOURN_TIME,
         TIMERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME,
+        TIMERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME,
         TIMERS_ACCEPTOR_TCP_PACKET_DROPPED__SOJOURN_TIME,
         TIMERS_ACCEPTOR_TCP_STREAM_ENQUEUED__SOJOURN_TIME,
         TIMERS_ACCEPTOR_TCP_SOCKET_SENT__SOJOURN_TIME,
@@ -1846,6 +1947,8 @@ mod id {
         Timers::TIMERS_ACCEPTOR_TCP_TLS_STREAM_ENQUEUED__SOJOURN_TIME as usize;
     pub const TIMERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME: usize =
         Timers::TIMERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME as usize;
+    pub const TIMERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME: usize =
+        Timers::TIMERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME as usize;
     pub const TIMERS_ACCEPTOR_TCP_PACKET_DROPPED__SOJOURN_TIME: usize =
         Timers::TIMERS_ACCEPTOR_TCP_PACKET_DROPPED__SOJOURN_TIME as usize;
     pub const TIMERS_ACCEPTOR_TCP_STREAM_ENQUEUED__SOJOURN_TIME: usize =
@@ -1889,7 +1992,7 @@ mod id {
     pub const TIMERS_STREAM_CONNECT_ERROR__LATENCY: usize =
         Timers::TIMERS_STREAM_CONNECT_ERROR__LATENCY as usize;
 }
-static INFO: &[Info; 323usize] = &[
+static INFO: &[Info; 340usize] = &[
     info::Builder {
         id: id::ACCEPTOR_TCP_STARTED,
         name: Str::new("acceptor_tcp_started\0"),
@@ -2061,6 +2164,18 @@ static INFO: &[Info; 323usize] = &[
     info::Builder {
         id: id::ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME,
         name: Str::new("acceptor_tcp_tls_stream_rejected.sojourn_time\0"),
+        units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
+        id: id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED,
+        name: Str::new("acceptor_tcp_synthetic_tls_stream_rejected\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
+        id: id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME,
+        name: Str::new("acceptor_tcp_synthetic_tls_stream_rejected.sojourn_time\0"),
         units: Units::Duration,
     }
     .build(),
@@ -3343,6 +3458,12 @@ static INFO: &[Info; 323usize] = &[
     }
     .build(),
     info::Builder {
+        id: id::PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE,
+        name: Str::new("path_secret_map_entry_replaced.replaced_age\0"),
+        units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
         id: id::PATH_SECRET_MAP_ID_ENTRY_EVICTED,
         name: Str::new("path_secret_map_id_entry_evicted\0"),
         units: Units::None,
@@ -3361,6 +3482,18 @@ static INFO: &[Info; 323usize] = &[
     }
     .build(),
     info::Builder {
+        id: id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+        name: Str::new("path_secret_map_id_entry_evicted.time_since_last_accessed\0"),
+        units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON,
+        name: Str::new("path_secret_map_id_entry_evicted.reason\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
         id: id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED,
         name: Str::new("path_secret_map_address_entry_evicted\0"),
         units: Units::None,
@@ -3376,6 +3509,18 @@ static INFO: &[Info; 323usize] = &[
         id: id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE,
         name: Str::new("path_secret_map_address_entry_evicted.age\0"),
         units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+        name: Str::new("path_secret_map_address_entry_evicted.time_since_last_accessed\0"),
+        units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON,
+        name: Str::new("path_secret_map_address_entry_evicted.reason\0"),
+        units: Units::None,
     }
     .build(),
     info::Builder {
@@ -3411,6 +3556,24 @@ static INFO: &[Info; 323usize] = &[
     info::Builder {
         id: id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__PEER_ADDRESS__PROTOCOL,
         name: Str::new("unknown_path_secret_packet_accepted.peer_address.protocol\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
+        id: id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE,
+        name: Str::new("unknown_path_secret_packet_accepted.age\0"),
+        units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
+        id: id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED,
+        name: Str::new("unknown_path_secret_packet_accepted.evicted\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
+        id: id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE,
+        name: Str::new("unknown_path_secret_packet_accepted.scheduled_handshake\0"),
         units: Units::None,
     }
     .build(),
@@ -3733,6 +3896,18 @@ static INFO: &[Info; 323usize] = &[
     }
     .build(),
     info::Builder {
+        id: id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD,
+        name: Str::new("path_secret_map_cleaner_cycled.entries.id.in_last_hs_period\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION,
+        name: Str::new("path_secret_map_cleaner_cycled.entries.id.in_last_hs_period.utilization\0"),
+        units: Units::Percent,
+    }
+    .build(),
+    info::Builder {
         id: id::PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS,
         name: Str::new("path_secret_map_cleaner_cycled.handshake_requests\0"),
         units: Units::None,
@@ -3754,6 +3929,36 @@ static INFO: &[Info; 323usize] = &[
         id: id::PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION,
         name: Str::new("path_secret_map_cleaner_cycled.total_duration\0"),
         units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_SERIALIZED,
+        name: Str::new("path_secret_map_serialized\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_SERIALIZED__ENTRIES,
+        name: Str::new("path_secret_map_serialized.entries\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_SERIALIZED__FILE_SIZE,
+        name: Str::new("path_secret_map_serialized.file_size\0"),
+        units: Units::Bytes,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_SERIALIZED__DURATION,
+        name: Str::new("path_secret_map_serialized.duration\0"),
+        units: Units::Duration,
+    }
+    .build(),
+    info::Builder {
+        id: id::PATH_SECRET_MAP_SERIALIZED__ERROR,
+        name: Str::new("path_secret_map_serialized.error\0"),
+        units: Units::None,
     }
     .build(),
     info::Builder {
@@ -3866,19 +4071,19 @@ pub struct ConnectionContext {
 }
 pub struct Subscriber<R: Registry> {
     #[allow(dead_code)]
-    counters: Box<[R::Counter; 111usize]>,
+    counters: Box<[R::Counter; 113usize]>,
     #[allow(dead_code)]
-    bool_counters: Box<[R::BoolCounter; 22usize]>,
+    bool_counters: Box<[R::BoolCounter; 25usize]>,
     #[allow(dead_code)]
     nominal_counters: Box<[R::NominalCounter]>,
     #[allow(dead_code)]
-    nominal_counter_offsets: Box<[usize; 35usize]>,
+    nominal_counter_offsets: Box<[usize; 37usize]>,
     #[allow(dead_code)]
-    measures: Box<[R::Measure; 128usize]>,
+    measures: Box<[R::Measure; 137usize]>,
     #[allow(dead_code)]
     gauges: Box<[R::Gauge; 0usize]>,
     #[allow(dead_code)]
-    timers: Box<[R::Timer; 27usize]>,
+    timers: Box<[R::Timer; 28usize]>,
     #[allow(dead_code)]
     nominal_timers: Box<[R::NominalTimer]>,
     #[allow(dead_code)]
@@ -3901,13 +4106,13 @@ impl<R: Registry> Subscriber<R> {
     #[allow(unused_mut)]
     #[inline]
     pub fn new(registry: R) -> Self {
-        let mut counters = Vec::with_capacity(111usize);
-        let mut bool_counters = Vec::with_capacity(22usize);
-        let mut nominal_counters = Vec::with_capacity(35usize);
-        let mut nominal_counter_offsets = Vec::with_capacity(35usize);
-        let mut measures = Vec::with_capacity(128usize);
+        let mut counters = Vec::with_capacity(113usize);
+        let mut bool_counters = Vec::with_capacity(25usize);
+        let mut nominal_counters = Vec::with_capacity(37usize);
+        let mut nominal_counter_offsets = Vec::with_capacity(37usize);
+        let mut measures = Vec::with_capacity(137usize);
         let mut gauges = Vec::with_capacity(0usize);
-        let mut timers = Vec::with_capacity(27usize);
+        let mut timers = Vec::with_capacity(28usize);
         let mut nominal_timers = Vec::with_capacity(0usize);
         let mut nominal_timer_offsets = Vec::with_capacity(0usize);
         counters.push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_STARTED]));
@@ -3920,6 +4125,8 @@ impl<R: Registry> Subscriber<R> {
         counters.push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_TLS_STARTED]));
         counters.push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_TLS_STREAM_ENQUEUED]));
         counters.push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_TLS_STREAM_REJECTED]));
+        counters
+            .push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED]));
         counters.push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_PACKET_DROPPED]));
         counters.push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_STREAM_ENQUEUED]));
         counters.push(registry.register_counter(&INFO[id::ACCEPTOR_TCP_IO_ERROR]));
@@ -4032,6 +4239,7 @@ impl<R: Registry> Subscriber<R> {
         counters.push(registry.register_counter(&INFO[id::PATH_SECRET_MAP_ID_CACHE_ACCESSED]));
         counters.push(registry.register_counter(&INFO[id::PATH_SECRET_MAP_ID_CACHE_ACCESSED_HIT]));
         counters.push(registry.register_counter(&INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED]));
+        counters.push(registry.register_counter(&INFO[id::PATH_SECRET_MAP_SERIALIZED]));
         counters.push(registry.register_counter(&INFO[id::PATH_SECRET_MAP_ID_WRITE_LOCK]));
         counters.push(registry.register_counter(&INFO[id::PATH_SECRET_MAP_ADDRESS_WRITE_LOCK]));
         counters.push(registry.register_counter(&INFO[id::PATH_SECRET_MAP_DATAGRAM_ENCRYPT]));
@@ -4091,11 +4299,19 @@ impl<R: Registry> Subscriber<R> {
         bool_counters.push(registry.register_bool_counter(&INFO[id::ENDPOINT_INITIALIZED__TCP]));
         bool_counters.push(registry.register_bool_counter(&INFO[id::ENDPOINT_INITIALIZED__UDP]));
         bool_counters.push(
+            registry.register_bool_counter(&INFO[id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED]),
+        );
+        bool_counters.push(registry.register_bool_counter(
+            &INFO[id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE],
+        ));
+        bool_counters.push(
             registry.register_bool_counter(&INFO[id::PATH_SECRET_MAP_ADDRESS_CACHE_ACCESSED__HIT]),
         );
         bool_counters.push(
             registry.register_bool_counter(&INFO[id::PATH_SECRET_MAP_ID_CACHE_ACCESSED__HIT]),
         );
+        bool_counters
+            .push(registry.register_bool_counter(&INFO[id::PATH_SECRET_MAP_SERIALIZED__ERROR]));
         {
             #[allow(unused_imports)]
             use api::*;
@@ -4328,9 +4544,35 @@ impl<R: Registry> Subscriber<R> {
             {
                 let offset = nominal_counters.len();
                 let mut count = 0;
+                for variant in <EvictionReason as AsVariant>::VARIANTS.iter() {
+                    nominal_counters.push(registry.register_nominal_counter(
+                        &INFO[id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON],
+                        variant,
+                    ));
+                    count += 1;
+                }
+                debug_assert_ne!(count, 0, "field type needs at least one variant");
+                nominal_counter_offsets.push(offset);
+            }
+            {
+                let offset = nominal_counters.len();
+                let mut count = 0;
                 for variant in <SocketAddress as AsVariant>::VARIANTS.iter() {
                     nominal_counters.push(registry.register_nominal_counter(
                         &INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL],
+                        variant,
+                    ));
+                    count += 1;
+                }
+                debug_assert_ne!(count, 0, "field type needs at least one variant");
+                nominal_counter_offsets.push(offset);
+            }
+            {
+                let offset = nominal_counters.len();
+                let mut count = 0;
+                for variant in <EvictionReason as AsVariant>::VARIANTS.iter() {
+                    nominal_counters.push(registry.register_nominal_counter(
+                        &INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON],
                         variant,
                     ));
                     count += 1;
@@ -4749,9 +4991,20 @@ impl<R: Registry> Subscriber<R> {
         measures.push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_UNINITIALIZED__ENTRIES]));
         measures
             .push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_UNINITIALIZED__LIFETIME]));
+        measures.push(
+            registry.register_measure(&INFO[id::PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE]),
+        );
         measures.push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE]));
+        measures.push(registry.register_measure(
+            &INFO[id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED],
+        ));
         measures
             .push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE]));
+        measures.push(registry.register_measure(
+            &INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED],
+        ));
+        measures
+            .push(registry.register_measure(&INFO[id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE]));
         measures.push(registry.register_measure(&INFO[id::KEY_ACCEPTED__GAP]));
         measures.push(registry.register_measure(&INFO[id::KEY_ACCEPTED__FORWARD_SHIFT]));
         measures.push(registry.register_measure(&INFO[id::REPLAY_POTENTIALLY_DETECTED__GAP]));
@@ -4802,6 +5055,12 @@ impl<R: Registry> Subscriber<R> {
         measures.push(registry.register_measure(
             &INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ADDRESS__UTILIZATION__INITIAL],
         ));
+        measures.push(registry.register_measure(
+            &INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD],
+        ));
+        measures.push(registry.register_measure(
+            &INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION],
+        ));
         measures.push(
             registry
                 .register_measure(&INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS]),
@@ -4817,6 +5076,9 @@ impl<R: Registry> Subscriber<R> {
         measures.push(
             registry.register_measure(&INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION]),
         );
+        measures.push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_SERIALIZED__ENTRIES]));
+        measures.push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_SERIALIZED__FILE_SIZE]));
+        measures.push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_SERIALIZED__DURATION]));
         measures.push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE]));
         measures
             .push(registry.register_measure(&INFO[id::PATH_SECRET_MAP_ID_WRITE_LOCK__DURATION]));
@@ -4845,6 +5107,11 @@ impl<R: Registry> Subscriber<R> {
         );
         timers.push(
             registry.register_timer(&INFO[id::ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME]),
+        );
+        timers.push(
+            registry.register_timer(
+                &INFO[id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME],
+            ),
         );
         timers.push(registry.register_timer(&INFO[id::ACCEPTOR_TCP_PACKET_DROPPED__SOJOURN_TIME]));
         timers.push(registry.register_timer(&INFO[id::ACCEPTOR_TCP_STREAM_ENQUEUED__SOJOURN_TIME]));
@@ -4930,6 +5197,9 @@ impl<R: Registry> Subscriber<R> {
                 }
                 id::COUNTERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED => {
                     (&INFO[id::ACCEPTOR_TCP_TLS_STREAM_REJECTED], entry)
+                }
+                id::COUNTERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED => {
+                    (&INFO[id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED], entry)
                 }
                 id::COUNTERS_ACCEPTOR_TCP_PACKET_DROPPED => {
                     (&INFO[id::ACCEPTOR_TCP_PACKET_DROPPED], entry)
@@ -5162,6 +5432,9 @@ impl<R: Registry> Subscriber<R> {
                 id::COUNTERS_PATH_SECRET_MAP_CLEANER_CYCLED => {
                     (&INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED], entry)
                 }
+                id::COUNTERS_PATH_SECRET_MAP_SERIALIZED => {
+                    (&INFO[id::PATH_SECRET_MAP_SERIALIZED], entry)
+                }
                 id::COUNTERS_PATH_SECRET_MAP_ID_WRITE_LOCK => {
                     (&INFO[id::PATH_SECRET_MAP_ID_WRITE_LOCK], entry)
                 }
@@ -5263,12 +5536,23 @@ impl<R: Registry> Subscriber<R> {
                 id::BOOL_COUNTERS_ENDPOINT_INITIALIZED__UDP => {
                     (&INFO[id::ENDPOINT_INITIALIZED__UDP], entry)
                 }
+                id::BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED => (
+                    &INFO[id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED],
+                    entry,
+                ),
+                id::BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE => (
+                    &INFO[id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE],
+                    entry,
+                ),
                 id::BOOL_COUNTERS_PATH_SECRET_MAP_ADDRESS_CACHE_ACCESSED__HIT => (
                     &INFO[id::PATH_SECRET_MAP_ADDRESS_CACHE_ACCESSED__HIT],
                     entry,
                 ),
                 id::BOOL_COUNTERS_PATH_SECRET_MAP_ID_CACHE_ACCESSED__HIT => {
                     (&INFO[id::PATH_SECRET_MAP_ID_CACHE_ACCESSED__HIT], entry)
+                }
+                id::BOOL_COUNTERS_PATH_SECRET_MAP_SERIALIZED__ERROR => {
+                    (&INFO[id::PATH_SECRET_MAP_SERIALIZED__ERROR], entry)
                 }
                 _ => unsafe { core::hint::unreachable_unchecked() },
             })
@@ -5459,6 +5743,17 @@ impl<R: Registry> Subscriber<R> {
                             variants,
                         )
                     }
+                    id::NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON => {
+                        let offset = *entry;
+                        let variants = <EvictionReason as AsVariant>::VARIANTS;
+                        let entries = &self
+                            .nominal_counters[offset..offset + variants.len()];
+                        (
+                            &INFO[id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON],
+                            entries,
+                            variants,
+                        )
+                    }
                     id::NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL => {
                         let offset = *entry;
                         let variants = <SocketAddress as AsVariant>::VARIANTS;
@@ -5466,6 +5761,17 @@ impl<R: Registry> Subscriber<R> {
                             .nominal_counters[offset..offset + variants.len()];
                         (
                             &INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__PEER_ADDRESS__PROTOCOL],
+                            entries,
+                            variants,
+                        )
+                    }
+                    id::NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON => {
+                        let offset = *entry;
+                        let variants = <EvictionReason as AsVariant>::VARIANTS;
+                        let entries = &self
+                            .nominal_counters[offset..offset + variants.len()];
+                        (
+                            &INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON],
                             entries,
                             variants,
                         )
@@ -6031,11 +6337,29 @@ impl<R: Registry> Subscriber<R> {
                     id::MEASURES_PATH_SECRET_MAP_UNINITIALIZED__LIFETIME => {
                         (&INFO[id::PATH_SECRET_MAP_UNINITIALIZED__LIFETIME], entry)
                     }
+                    id::MEASURES_PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE => {
+                        (&INFO[id::PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE], entry)
+                    }
                     id::MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE => {
                         (&INFO[id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE], entry)
                     }
+                    id::MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED => {
+                        (
+                            &INFO[id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED],
+                            entry,
+                        )
+                    }
                     id::MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE => {
                         (&INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE], entry)
+                    }
+                    id::MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED => {
+                        (
+                            &INFO[id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED],
+                            entry,
+                        )
+                    }
+                    id::MEASURES_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE => {
+                        (&INFO[id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE], entry)
                     }
                     id::MEASURES_KEY_ACCEPTED__GAP => {
                         (&INFO[id::KEY_ACCEPTED__GAP], entry)
@@ -6124,6 +6448,18 @@ impl<R: Registry> Subscriber<R> {
                             entry,
                         )
                     }
+                    id::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD => {
+                        (
+                            &INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD],
+                            entry,
+                        )
+                    }
+                    id::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION => {
+                        (
+                            &INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION],
+                            entry,
+                        )
+                    }
                     id::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS => {
                         (
                             &INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS],
@@ -6147,6 +6483,15 @@ impl<R: Registry> Subscriber<R> {
                             &INFO[id::PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION],
                             entry,
                         )
+                    }
+                    id::MEASURES_PATH_SECRET_MAP_SERIALIZED__ENTRIES => {
+                        (&INFO[id::PATH_SECRET_MAP_SERIALIZED__ENTRIES], entry)
+                    }
+                    id::MEASURES_PATH_SECRET_MAP_SERIALIZED__FILE_SIZE => {
+                        (&INFO[id::PATH_SECRET_MAP_SERIALIZED__FILE_SIZE], entry)
+                    }
+                    id::MEASURES_PATH_SECRET_MAP_SERIALIZED__DURATION => {
+                        (&INFO[id::PATH_SECRET_MAP_SERIALIZED__DURATION], entry)
                     }
                     id::MEASURES_PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE => {
                         (&INFO[id::PATH_SECRET_MAP_ID_WRITE_LOCK__ACQUIRE], entry)
@@ -6215,6 +6560,10 @@ impl<R: Registry> Subscriber<R> {
                 ),
                 id::TIMERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME => (
                     &INFO[id::ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME],
+                    entry,
+                ),
+                id::TIMERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME => (
+                    &INFO[id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME],
                     entry,
                 ),
                 id::TIMERS_ACCEPTOR_TCP_PACKET_DROPPED__SOJOURN_TIME => {
@@ -6594,6 +6943,27 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
         self.time(
             id::ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME,
             id::TIMERS_ACCEPTOR_TCP_TLS_STREAM_REJECTED__SOJOURN_TIME,
+            event.sojourn_time,
+        );
+        let _ = event;
+        let _ = meta;
+    }
+    #[inline]
+    fn on_acceptor_tcp_synthetic_tls_stream_rejected(
+        &self,
+        meta: &api::EndpointMeta,
+        event: &api::AcceptorTcpSyntheticTlsStreamRejected,
+    ) {
+        #[allow(unused_imports)]
+        use api::*;
+        self.count(
+            id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED,
+            id::COUNTERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED,
+            1usize,
+        );
+        self.time(
+            id::ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME,
+            id::TIMERS_ACCEPTOR_TCP_SYNTHETIC_TLS_STREAM_REJECTED__SOJOURN_TIME,
             event.sojourn_time,
         );
         let _ = event;
@@ -8489,6 +8859,11 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
             id::NOMINAL_COUNTERS_PATH_SECRET_MAP_ENTRY_REPLACED__PEER_ADDRESS__PROTOCOL,
             &event.peer_address,
         );
+        self.measure(
+            id::PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE,
+            id::MEASURES_PATH_SECRET_MAP_ENTRY_REPLACED__REPLACED_AGE,
+            event.replaced_age,
+        );
         let _ = event;
         let _ = meta;
     }
@@ -8515,6 +8890,16 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
             id::MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__AGE,
             event.age,
         );
+        self.measure(
+            id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+            id::MEASURES_PATH_SECRET_MAP_ID_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+            event.time_since_last_accessed,
+        );
+        self.count_nominal(
+            id::PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON,
+            id::NOMINAL_COUNTERS_PATH_SECRET_MAP_ID_ENTRY_EVICTED__REASON,
+            &event.reason,
+        );
         let _ = event;
         let _ = meta;
     }
@@ -8540,6 +8925,16 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
             id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE,
             id::MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__AGE,
             event.age,
+        );
+        self.measure(
+            id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+            id::MEASURES_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__TIME_SINCE_LAST_ACCESSED,
+            event.time_since_last_accessed,
+        );
+        self.count_nominal(
+            id::PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON,
+            id::NOMINAL_COUNTERS_PATH_SECRET_MAP_ADDRESS_ENTRY_EVICTED__REASON,
+            &event.reason,
         );
         let _ = event;
         let _ = meta;
@@ -8603,6 +8998,21 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
             id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__PEER_ADDRESS__PROTOCOL,
             id::NOMINAL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__PEER_ADDRESS__PROTOCOL,
             &event.peer_address,
+        );
+        self.measure(
+            id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE,
+            id::MEASURES_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__AGE,
+            event.age,
+        );
+        self.count_bool(
+            id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED,
+            id::BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__EVICTED,
+            event.evicted,
+        );
+        self.count_bool(
+            id::UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE,
+            id::BOOL_COUNTERS_UNKNOWN_PATH_SECRET_PACKET_ACCEPTED__SCHEDULED_HANDSHAKE,
+            event.scheduled_handshake,
         );
         let _ = event;
         let _ = meta;
@@ -9078,6 +9488,16 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
             event.address_entries_initial_utilization,
         );
         self.measure(
+            id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD,
+            id::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD,
+            event.id_entries_in_last_hs_period,
+        );
+        self.measure(
+            id::PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION,
+            id::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__ENTRIES__ID__IN_LAST_HS_PERIOD__UTILIZATION,
+            event.id_entries_in_last_hs_period_utilization,
+        );
+        self.measure(
             id::PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS,
             id::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__HANDSHAKE_REQUESTS,
             event.handshake_requests,
@@ -9096,6 +9516,42 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
             id::PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION,
             id::MEASURES_PATH_SECRET_MAP_CLEANER_CYCLED__TOTAL_DURATION,
             event.duration,
+        );
+        let _ = event;
+        let _ = meta;
+    }
+    #[inline]
+    fn on_path_secret_map_serialized(
+        &self,
+        meta: &api::EndpointMeta,
+        event: &api::PathSecretMapSerialized,
+    ) {
+        #[allow(unused_imports)]
+        use api::*;
+        self.count(
+            id::PATH_SECRET_MAP_SERIALIZED,
+            id::COUNTERS_PATH_SECRET_MAP_SERIALIZED,
+            1usize,
+        );
+        self.measure(
+            id::PATH_SECRET_MAP_SERIALIZED__ENTRIES,
+            id::MEASURES_PATH_SECRET_MAP_SERIALIZED__ENTRIES,
+            event.entries,
+        );
+        self.measure(
+            id::PATH_SECRET_MAP_SERIALIZED__FILE_SIZE,
+            id::MEASURES_PATH_SECRET_MAP_SERIALIZED__FILE_SIZE,
+            event.file_size,
+        );
+        self.measure(
+            id::PATH_SECRET_MAP_SERIALIZED__DURATION,
+            id::MEASURES_PATH_SECRET_MAP_SERIALIZED__DURATION,
+            event.duration,
+        );
+        self.count_bool(
+            id::PATH_SECRET_MAP_SERIALIZED__ERROR,
+            id::BOOL_COUNTERS_PATH_SECRET_MAP_SERIALIZED__ERROR,
+            event.error,
         );
         let _ = event;
         let _ = meta;

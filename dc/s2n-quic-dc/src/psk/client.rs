@@ -31,33 +31,23 @@ struct State {
     local_addr: SocketAddr,
 }
 
-fn make_runtime() -> (Arc<Runtime>, DropGuard) {
-    #[expect(
-        clippy::unwrap_used,
-        reason = "FIXME: building the tokio runtime is fallible (resource exhaustion); should propagate the error"
-    )]
+fn make_runtime() -> std::io::Result<(Arc<Runtime>, DropGuard)> {
     let runtime = Arc::new(
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
-            .build()
-            .unwrap(),
+            .build()?,
     );
 
     let token = tokio_util::sync::CancellationToken::new();
     let cancelled = token.clone().cancelled_owned();
     let rt = runtime.clone();
-    #[expect(
-        clippy::unwrap_used,
-        reason = "FIXME: spawning a thread is fallible (resource exhaustion); should propagate the error"
-    )]
     std::thread::Builder::new()
         .name(String::from("hs-client"))
         .spawn(move || {
             rt.block_on(cancelled);
-        })
-        .unwrap();
+        })?;
 
-    (runtime, token.drop_guard())
+    Ok((runtime, token.drop_guard()))
 }
 
 impl State {
@@ -72,7 +62,7 @@ impl State {
         subscriber: Subscriber,
         builder: Builder<Event>,
     ) -> io::Result<Self> {
-        let (runtime, rt_guard) = make_runtime();
+        let (runtime, rt_guard) = make_runtime()?;
         let guard = runtime.enter();
         let client = io::Client::bind::<Provider, Subscriber, Event>(
             addr,
@@ -164,9 +154,8 @@ impl Provider {
             return Ok((peer, HandshakeKind::Cached));
         }
 
-        // Unconditionally request a background handshake. This schedules any re-handshaking
-        // needed. We put this after get_tracked because that saves us a global lock to check
-        // presence in the map in the happy path.
+        // Ensure that even if the future is dropped a handshake is driven to completion in th
+        // background.
         if self.state.runtime.is_some() {
             let _ = self.background_handshake_with(peer, server_name.clone());
         }
@@ -253,12 +242,6 @@ impl Provider {
         peer: SocketAddr,
         server_name: Name,
     ) -> std::io::Result<HandshakeKind> {
-        // Unconditionally request a background handshake. This schedules any re-handshaking
-        // needed.
-        if self.state.runtime.is_some() {
-            let _ = self.background_handshake_with(peer, server_name.clone());
-        }
-
         if self.state.map.contains(&peer) {
             return Ok(HandshakeKind::Cached);
         }

@@ -32,7 +32,7 @@ jobs:
     permissions:
       id-token: write  # Required for GITHUB_TOKEN usage
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -54,7 +54,7 @@ jobs:
   deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -63,4 +63,5 @@ jobs:
 
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          command: check --config .github/config/cargo-deny.toml
+          arguments: --all-features --config .github/config/cargo-deny.toml
+          command: check
