@@ -13,6 +13,7 @@ use s2n_quic::{
     server::Name,
 };
 use s2n_quic_core::{endpoint::Type, inet::SocketAddress};
+use s2n_quic_dc_metrics::TaskMonitor;
 use std::{
     any::Any,
     hash::BuildHasher,
@@ -37,6 +38,16 @@ pub const DEFAULT_MTU: u16 = DEFAULT_BASE_MTU;
 pub const DEFAULT_PTO_JITTER_PERCENTAGE: u8 = 33;
 const DEFAULT_INITIAL_RTT: Duration = Duration::from_millis(1);
 const DC_QUIC_VERSION: u32 = 0;
+/// Application error codes the client uses to close a connection whose dcQUIC handshake did not
+/// complete. Both must be non-zero so the close is emitted as an application `CONNECTION_CLOSE`
+/// rather than the clean, no-error close produced by dropping the connection handle.
+/// Distinct codes let the peer/operator tell the two failure modes apart.
+///
+/// `ConfirmComplete::wait_ready` reported an error before the dc handshake completed.
+const DC_HANDSHAKE_INCOMPLETE_ERROR: u32 = 1;
+/// `ConfirmComplete::wait_ready` did not resolve before the handshake deadline elapsed.
+const DC_HANDSHAKE_TIMEOUT_ERROR: u32 = 2;
+
 /// Number of threads used to make progress on the TLS handshake
 pub const DEFAULT_THREAD_COUNT: usize = 0;
 
@@ -48,10 +59,15 @@ pub type Result<T = (), E = Error> = core::result::Result<T, E>;
 
 struct TokioExecutor {
     runtime: Runtime,
+    monitor: Option<TaskMonitor>,
 }
 impl s2n_quic::provider::tls::offload::Executor for TokioExecutor {
     fn spawn(&self, task: impl core::future::Future<Output = ()> + Send + 'static) {
-        self.runtime.spawn(task);
+        if let Some(monitor) = &self.monitor {
+            self.runtime.spawn(monitor.instrument(task));
+        } else {
+            self.runtime.spawn(task);
+        }
     }
 }
 #[derive(Clone)]
@@ -167,6 +183,10 @@ impl Server {
                 .enable_all()
                 .build()?;
 
+            let monitor = builder
+                .registry
+                .map(|registry| registry.register_task_monitor("HsOffload"));
+
             let tls = s2n_quic::provider::tls::offload::OffloadBuilder::new()
                 .with_endpoint(tls_materials_provider)
                 .with_exporter(DCExporter {
@@ -174,7 +194,7 @@ impl Server {
                     endpoint_type: Type::Server,
                     map: map.clone(),
                 })
-                .with_executor(TokioExecutor { runtime })
+                .with_executor(TokioExecutor { runtime, monitor })
                 .build();
 
             // We need packet storage when offloading is turned on due to this issue:
@@ -534,10 +554,23 @@ impl HandshakeQueue {
                 }
                 Ok(Err(e)) => {
                     // ConfirmComplete::wait_ready failed. We should treat the handshake as failed.
+                    //
+                    // Explicitly close instead of letting `connection` drop, which would emit a
+                    // clean (no-error) CONNECTION_CLOSE. A clean close is the signal the server
+                    // uses to complete the dc handshake when the token ACK is lost; since the
+                    // handshake did not complete here, we must not send it. Any explicit close is
+                    // emitted as an application CONNECTION_CLOSE (`connection::Error::Application`),
+                    // which the server does not treat as completion. If the connection is already
+                    // closed this is a no-op.
+                    connection.close(DC_HANDSHAKE_INCOMPLETE_ERROR.into());
                     return Err(e);
                 }
                 Err(_elapsed) => {
                     // Handshake timeout occurred. We should treat the handshake as failed.
+                    //
+                    // Close with an explicit error, as in the failure case above, but with a
+                    // distinct code so a timeout can be distinguished from other failures.
+                    connection.close(DC_HANDSHAKE_TIMEOUT_ERROR.into());
                     return Err(io::Error::new(
                         io::ErrorKind::TimedOut,
                         "ConfirmComplete handshake timeout",

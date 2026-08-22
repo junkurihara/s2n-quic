@@ -314,7 +314,7 @@ impl<Config: endpoint::Config> ConnectionImpl<Config> {
         }
         self.first_buffered_at = None;
 
-        let mut payload: Vec<u8> = self.packet_buffer.drain(..).collect();
+        let mut payload: Vec<u8> = std::mem::take(&mut self.packet_buffer);
         let buffer = DecoderBufferMut::new(payload.as_mut_slice());
 
         let destination_connection_id = self.path_manager.active_path().local_connection_id;
@@ -872,9 +872,13 @@ impl<Config: endpoint::Config> connection::Trait for ConnectionImpl<Config> {
 
         if let Some((space, _)) = self.space_manager.application_mut() {
             let closed_without_error = matches!(error, connection::Error::Closed { .. });
+            let peer_initiated = matches!(
+                error,
+                connection::Error::Closed { initiator, .. } if initiator.is_remote()
+            );
             space
                 .dc_manager
-                .on_close(closed_without_error, &mut publisher);
+                .on_close(closed_without_error, peer_initiated, &mut publisher);
         }
 
         publisher.on_connection_closed(event::builder::ConnectionClosed { error });
