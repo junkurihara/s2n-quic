@@ -26,6 +26,7 @@ use std::{
 
 mod blackhole;
 mod buffer_limit;
+mod close_all_stream_after_endpoint_drop;
 mod connection_limits;
 mod connection_migration;
 mod deduplicate;
@@ -45,6 +46,7 @@ mod offload;
 mod platform_events;
 mod pto;
 mod resumption;
+mod retry_short_cid;
 mod self_test;
 mod skip_packets;
 mod slow_tls;
@@ -71,6 +73,8 @@ mod dc_connection_close;
 mod fips;
 #[cfg(s2n_tls_provider)]
 mod mtls;
+#[cfg(s2n_tls_provider)]
+mod pq_initial_mtu;
 #[cfg(s2n_tls_provider)]
 mod signature_scheme;
 // This test uses real OS sockets, which conflicts with bach's simulated time scope on Windows.
