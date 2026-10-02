@@ -41,6 +41,7 @@ mod issue_1464;
 mod issue_1717;
 mod issue_954;
 mod mtu;
+mod new_token;
 mod no_tls;
 mod offload;
 mod platform_events;
@@ -75,6 +76,8 @@ mod fips;
 mod mtls;
 #[cfg(s2n_tls_provider)]
 mod pq_initial_mtu;
+#[cfg(s2n_tls_provider)]
+mod signature_public_key_type;
 #[cfg(s2n_tls_provider)]
 mod signature_scheme;
 // This test uses real OS sockets, which conflicts with bach's simulated time scope on Windows.
