@@ -239,6 +239,7 @@ mod id {
         STREAM_HANDSHAKE_PACKET_REJECTED__CONN,
         STREAM_HANDSHAKE_PACKET_REJECTED__REASON,
         CONNECTION_CLOSED,
+        CONNECTION_CLOSED__LATENCY,
         ENDPOINT_INITIALIZED,
         ENDPOINT_INITIALIZED__ACCEPTOR__PROTOCOL,
         ENDPOINT_INITIALIZED__HANDSHAKE__PROTOCOL,
@@ -246,6 +247,10 @@ mod id {
         ENDPOINT_INITIALIZED__UDP,
         DC_CONNECTION_TIMEOUT,
         DC_CONNECTION_TIMEOUT__PEER_ADDRESS__PROTOCOL,
+        DC_HANDSHAKE_PROBE,
+        DC_HANDSHAKE_PROBE__PEER_ADDRESS__PROTOCOL,
+        DC_HANDSHAKE_PROBE__LATENCY,
+        DC_HANDSHAKE_PROBE__OUTCOME,
         PATH_SECRET_MAP_INITIALIZED,
         PATH_SECRET_MAP_INITIALIZED__CAPACITY,
         PATH_SECRET_MAP_UNINITIALIZED,
@@ -254,6 +259,7 @@ mod id {
         PATH_SECRET_MAP_UNINITIALIZED__LIFETIME,
         PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED,
         PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__PEER_ADDRESS__PROTOCOL,
+        PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__REASON,
         PATH_SECRET_MAP_ENTRY_INSERTED,
         PATH_SECRET_MAP_ENTRY_INSERTED__PEER_ADDRESS__PROTOCOL,
         PATH_SECRET_MAP_ENTRY_READY,
@@ -730,6 +736,7 @@ mod id {
     pub const STREAM_HANDSHAKE_PACKET_REJECTED__REASON: usize =
         InfoId::STREAM_HANDSHAKE_PACKET_REJECTED__REASON as usize;
     pub const CONNECTION_CLOSED: usize = InfoId::CONNECTION_CLOSED as usize;
+    pub const CONNECTION_CLOSED__LATENCY: usize = InfoId::CONNECTION_CLOSED__LATENCY as usize;
     pub const ENDPOINT_INITIALIZED: usize = InfoId::ENDPOINT_INITIALIZED as usize;
     pub const ENDPOINT_INITIALIZED__ACCEPTOR__PROTOCOL: usize =
         InfoId::ENDPOINT_INITIALIZED__ACCEPTOR__PROTOCOL as usize;
@@ -740,6 +747,11 @@ mod id {
     pub const DC_CONNECTION_TIMEOUT: usize = InfoId::DC_CONNECTION_TIMEOUT as usize;
     pub const DC_CONNECTION_TIMEOUT__PEER_ADDRESS__PROTOCOL: usize =
         InfoId::DC_CONNECTION_TIMEOUT__PEER_ADDRESS__PROTOCOL as usize;
+    pub const DC_HANDSHAKE_PROBE: usize = InfoId::DC_HANDSHAKE_PROBE as usize;
+    pub const DC_HANDSHAKE_PROBE__PEER_ADDRESS__PROTOCOL: usize =
+        InfoId::DC_HANDSHAKE_PROBE__PEER_ADDRESS__PROTOCOL as usize;
+    pub const DC_HANDSHAKE_PROBE__LATENCY: usize = InfoId::DC_HANDSHAKE_PROBE__LATENCY as usize;
+    pub const DC_HANDSHAKE_PROBE__OUTCOME: usize = InfoId::DC_HANDSHAKE_PROBE__OUTCOME as usize;
     pub const PATH_SECRET_MAP_INITIALIZED: usize = InfoId::PATH_SECRET_MAP_INITIALIZED as usize;
     pub const PATH_SECRET_MAP_INITIALIZED__CAPACITY: usize =
         InfoId::PATH_SECRET_MAP_INITIALIZED__CAPACITY as usize;
@@ -754,6 +766,8 @@ mod id {
         InfoId::PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED as usize;
     pub const PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__PEER_ADDRESS__PROTOCOL: usize =
         InfoId::PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__PEER_ADDRESS__PROTOCOL as usize;
+    pub const PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__REASON: usize =
+        InfoId::PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__REASON as usize;
     pub const PATH_SECRET_MAP_ENTRY_INSERTED: usize =
         InfoId::PATH_SECRET_MAP_ENTRY_INSERTED as usize;
     pub const PATH_SECRET_MAP_ENTRY_INSERTED__PEER_ADDRESS__PROTOCOL: usize =
@@ -1063,6 +1077,7 @@ mod counter {
                 id::CONNECTION_CLOSED => Self(connection_closed),
                 id::ENDPOINT_INITIALIZED => Self(endpoint_initialized),
                 id::DC_CONNECTION_TIMEOUT => Self(dc_connection_timeout),
+                id::DC_HANDSHAKE_PROBE => Self(dc_handshake_probe),
                 id::PATH_SECRET_MAP_INITIALIZED => Self(path_secret_map_initialized),
                 id::PATH_SECRET_MAP_UNINITIALIZED => Self(path_secret_map_uninitialized),
                 id::PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED => {
@@ -1356,7 +1371,9 @@ mod counter {
         s2n_quic_dc__event__counter__dc_connection_timeout]
             fn dc_connection_timeout(value: u64);
             #[link_name =
-        s2n_quic_dc__event__counter__path_secret_map_initialized]
+        s2n_quic_dc__event__counter__dc_handshake_probe]
+            fn dc_handshake_probe(value: u64);
+            #[link_name = s2n_quic_dc__event__counter__path_secret_map_initialized]
             fn path_secret_map_initialized(value: u64);
             #[link_name =
         s2n_quic_dc__event__counter__path_secret_map_uninitialized]
@@ -1666,8 +1683,15 @@ mod counter {
                     id::DC_CONNECTION_TIMEOUT__PEER_ADDRESS__PROTOCOL => {
                         Self(dc_connection_timeout__peer_address__protocol)
                     }
+                    id::DC_HANDSHAKE_PROBE__PEER_ADDRESS__PROTOCOL => {
+                        Self(dc_handshake_probe__peer_address__protocol)
+                    }
+                    id::DC_HANDSHAKE_PROBE__OUTCOME => Self(dc_handshake_probe__outcome),
                     id::PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__PEER_ADDRESS__PROTOCOL => {
                         Self(path_secret_map_background_handshake_requested__peer_address__protocol)
+                    }
+                    id::PATH_SECRET_MAP_BACKGROUND_HANDSHAKE_REQUESTED__REASON => {
+                        Self(path_secret_map_background_handshake_requested__reason)
                     }
                     id::PATH_SECRET_MAP_ENTRY_INSERTED__PEER_ADDRESS__PROTOCOL => {
                         Self(path_secret_map_entry_inserted__peer_address__protocol)
@@ -1837,8 +1861,25 @@ mod counter {
                     variant_name: &info::Str,
                 );
                 #[link_name =
+            s2n_quic_dc__event__counter__nominal__dc_handshake_probe__peer_address__protocol]
+                fn dc_handshake_probe__peer_address__protocol(
+                    value: u64,
+                    variant: u64,
+                    variant_name: &info::Str,
+                );
+                #[link_name =
+            s2n_quic_dc__event__counter__nominal__dc_handshake_probe__outcome]
+                fn dc_handshake_probe__outcome(value: u64, variant: u64, variant_name: &info::Str);
+                #[link_name =
             s2n_quic_dc__event__counter__nominal__path_secret_map_background_handshake_requested__peer_address__protocol]
                 fn path_secret_map_background_handshake_requested__peer_address__protocol(
+                    value: u64,
+                    variant: u64,
+                    variant_name: &info::Str,
+                );
+                #[link_name =
+            s2n_quic_dc__event__counter__nominal__path_secret_map_background_handshake_requested__reason]
+                fn path_secret_map_background_handshake_requested__reason(
                     value: u64,
                     variant: u64,
                     variant_name: &info::Str,
@@ -2872,6 +2913,8 @@ mod timer {
                 id::STREAM_TLS_CONNECT__TCP_LATENCY => Self(stream_tls_connect__tcp_latency),
                 id::STREAM_TLS_CONNECT__TLS_LATENCY => Self(stream_tls_connect__tls_latency),
                 id::STREAM_CONNECT_ERROR__LATENCY => Self(stream_connect_error__latency),
+                id::CONNECTION_CLOSED__LATENCY => Self(connection_closed__latency),
+                id::DC_HANDSHAKE_PROBE__LATENCY => Self(dc_handshake_probe__latency),
                 _ => unreachable!("invalid info: {info:?}"),
             }
         }
@@ -2967,6 +3010,12 @@ mod timer {
             #[link_name =
         s2n_quic_dc__event__timer__stream_connect_error__latency]
             fn stream_connect_error__latency(value: core::time::Duration);
+            #[link_name =
+        s2n_quic_dc__event__timer__connection_closed__latency]
+            fn connection_closed__latency(value: core::time::Duration);
+            #[link_name =
+        s2n_quic_dc__event__timer__dc_handshake_probe__latency]
+            fn dc_handshake_probe__latency(value: core::time::Duration);
         }
     );
     pub mod nominal {

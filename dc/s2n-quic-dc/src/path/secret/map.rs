@@ -94,6 +94,13 @@ pub struct Map {
     store: Arc<dyn Store>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HandshakeProbeOutcome {
+    Responsive,
+    Unresponsive,
+    Error,
+}
+
 impl fmt::Debug for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Map")
@@ -299,9 +306,18 @@ impl Map {
     ///
     /// Note that unlike by-IP lookup this should typically not be done significantly after the
     /// original secret was used for decryption.
+    ///
+    /// Returns `None` if there is no entry for `id`, or if that entry has exhausted its key IDs. In
+    /// the latter case a re-handshake is requested which replaces the peer's path secret.
     pub fn seal_once_id(&self, id: Id) -> Option<(seal::Once, Credentials, dc::ApplicationParams)> {
         let entry = self.store.get_by_id_tracked(&id)?;
-        let (sealer, credentials) = entry.uni_sealer();
+        let Some((sealer, credentials)) = entry.uni_sealer() else {
+            self.store.request_handshake(
+                *entry.peer(),
+                event::builder::HandshakeReason::KeyIdExhaustion,
+            );
+            return None;
+        };
         Some((sealer, credentials, entry.parameters()))
     }
 
@@ -395,6 +411,17 @@ impl Map {
     /// Emits a DcConnectionTimeout event via the subscriber
     pub fn on_dc_connection_timeout(&self, peer_address: &SocketAddr) {
         self.store.on_dc_connection_timeout(peer_address);
+    }
+
+    /// Emits a DcHandshakeProbe event via the subscriber.
+    pub(crate) fn on_dc_handshake_probe(
+        &self,
+        peer_address: &SocketAddr,
+        latency: std::time::Duration,
+        outcome: HandshakeProbeOutcome,
+    ) {
+        self.store
+            .on_dc_handshake_probe(peer_address, latency, outcome);
     }
 
     /// Emits a datagram encrypt event with the wire packet length

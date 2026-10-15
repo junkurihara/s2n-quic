@@ -47,7 +47,7 @@ mod cert_chain;
 pub use cert_chain::CertificateChain;
 
 pub struct S2nTlsConnection {
-    socket: Arc<Single<TcpStream>>,
+    socket: Option<Arc<Single<TcpStream>>>,
     connection: Mutex<(Conn, ReadState)>,
     cert_chain: Option<CertificateChain>,
 }
@@ -83,7 +83,7 @@ impl S2nTlsConnection {
             .set_blinding(s2n_tls::enums::Blinding::SelfService)?;
 
         Ok(S2nTlsConnection {
-            socket,
+            socket: Some(socket),
             connection: Mutex::new((
                 connection,
                 ReadState {
@@ -99,6 +99,10 @@ impl S2nTlsConnection {
         &mut self,
         mut initial_read_buffer: Option<crate::msg::recv::Message>,
     ) -> io::Result<()> {
+        let socket = self
+            .socket
+            .as_deref()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "TLS already negotiated"))?;
         std::future::poll_fn(|cx| -> Poll<io::Result<()>> {
             #[expect(
                 clippy::unwrap_used,
@@ -107,7 +111,7 @@ impl S2nTlsConnection {
             let s2n_connection = &mut self.connection.get_mut().unwrap().0;
 
             let context = NegotiateContext {
-                socket: &self.socket,
+                socket,
                 waker: cx.waker(),
                 initial_read_buffer: initial_read_buffer.as_mut(),
             };
@@ -155,7 +159,11 @@ impl S2nTlsConnection {
 
             res
         })
-        .await
+        .await?;
+        // Dataplane TLS uses in-memory buffers. Release the handshake socket
+        // reference so application rebinding can drop its old registration.
+        self.socket = None;
+        Ok(())
     }
 
     #[expect(
@@ -309,6 +317,20 @@ impl S2nTlsConnection {
         }
 
         Ok(())
+    }
+
+    /// Returns the number of decrypted application bytes s2n-tls holds that have not been read yet.
+    ///
+    /// s2n-tls decrypts a whole record but only copies out as much as `read` offers, so plaintext
+    /// can remain after the encrypted input has been fully consumed.
+    pub(crate) fn buffered_plaintext_len(&self) -> usize {
+        #[expect(
+            clippy::unwrap_used,
+            reason = "lock is only poisoned if another thread already panicked while holding it"
+        )]
+        let mut guard = self.connection.lock().unwrap();
+        let conn: &mut s2n_tls::connection::Connection = (*guard.0).as_mut();
+        conn.peek_len()
     }
 
     pub(crate) fn peer_cert_chain(&self) -> Option<&CertificateChain> {
