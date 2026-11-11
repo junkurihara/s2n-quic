@@ -4,13 +4,13 @@
 use crate::{
     path::secret,
     psk::io::{
-        Result, DEFAULT_IDLE_TIMEOUT, DEFAULT_MAX_DATA, DEFAULT_MTU, DEFAULT_PTO_JITTER_PERCENTAGE,
+        Result, DEFAULT_IDLE_TIMEOUT, DEFAULT_MAX_DATA, DEFAULT_PTO_JITTER_PERCENTAGE,
         DEFAULT_THREAD_COUNT,
     },
 };
 use s2n_quic::provider::{event::Subscriber as Sub, tls::Provider as Prov};
 use s2n_quic_dc_metrics::Registry;
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, os::fd::OwnedFd, sync::Arc, time::Duration};
 
 use super::Provider;
 
@@ -20,13 +20,14 @@ pub struct Builder<
     pub(crate) event_subscriber: Event,
     pub(crate) data_window: u64,
     pub(crate) initial_data_window: Option<u64>,
-    pub(crate) mtu: u16,
+    pub(crate) mtu: Option<u16>,
     pub(crate) max_idle_timeout: Duration,
     pub(crate) pto_jitter_percentage: u8,
     #[cfg(any(test, feature = "testing"))]
     pub(crate) endpoint_limits: Option<TestEndpointLimiter>,
     pub(crate) thread_offload_count: usize,
     pub(crate) registry: Option<Registry>,
+    pub(crate) attach_reuseport_ebpf: Option<Arc<OwnedFd>>,
 }
 
 /// A wrapper type for test endpoint limiters
@@ -51,13 +52,14 @@ impl Default for Builder<s2n_quic::provider::event::default::Subscriber> {
             event_subscriber: Default::default(),
             data_window: DEFAULT_MAX_DATA,
             initial_data_window: None,
-            mtu: DEFAULT_MTU,
+            mtu: None,
             max_idle_timeout: DEFAULT_IDLE_TIMEOUT,
             pto_jitter_percentage: DEFAULT_PTO_JITTER_PERCENTAGE,
             #[cfg(any(test, feature = "testing"))]
             endpoint_limits: None,
             thread_offload_count: DEFAULT_THREAD_COUNT,
             registry: None,
+            attach_reuseport_ebpf: None,
         }
     }
 }
@@ -79,6 +81,7 @@ impl<Event: s2n_quic::provider::event::Subscriber> Builder<Event> {
             endpoint_limits: self.endpoint_limits,
             thread_offload_count: self.thread_offload_count,
             registry: self.registry,
+            attach_reuseport_ebpf: self.attach_reuseport_ebpf,
         }
     }
 
@@ -103,15 +106,24 @@ impl<Event: s2n_quic::provider::event::Subscriber> Builder<Event> {
     /// Sets the initial amount of data that the peer is allowed to send before the application
     /// accepts the stream
     ///
-    /// This defaults to 10x the MTU if not set.
+    /// This defaults to 10x the configured MTU if not set. Without an explicit MTU,
+    /// the default is 89400 bytes on Linux and 14500 bytes elsewhere.
     pub fn with_initial_data_window(mut self, initial_data_window: u64) -> Self {
         self.initial_data_window = Some(initial_data_window);
         self
     }
 
     /// Sets the largest maximum transmission unit (MTU) that will be used for transmission
+    ///
+    /// Defaults to 1450 bytes, including IP and UDP headers, with discovery disabled.
+    /// Larger values opt into discovery, while initial packets remain at most 1450 bytes.
+    /// The maximum is capped at 8940 bytes on Linux and 1450 bytes elsewhere.
+    /// Each endpoint controls its own sending MTU; configure both for both directions.
+    /// The peer's receive capacity can also limit discovery.
+    /// UDP streams snapshot the discovered MTU when opened and do not adopt later increases.
+    /// Existing callers setting a larger value enable discovery upon upgrading.
     pub fn with_mtu(mut self, mtu: u16) -> Self {
-        self.mtu = mtu;
+        self.mtu = Some(mtu);
         self
     }
 
@@ -153,6 +165,12 @@ impl<Event: s2n_quic::provider::event::Subscriber> Builder<Event> {
 
     pub fn with_registry(mut self, registry: Registry) -> Self {
         self.registry = Some(registry);
+        self
+    }
+
+    /// Installs a BPF program on the handshake socket via `SO_ATTACH_REUSEPORT_EBPF`
+    pub fn with_attach_reuseport_ebpf(mut self, fd: Arc<OwnedFd>) -> Self {
+        self.attach_reuseport_ebpf = Some(fd);
         self
     }
 
